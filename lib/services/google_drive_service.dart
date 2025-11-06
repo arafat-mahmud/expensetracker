@@ -1,0 +1,254 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:googleapis/drive/v3.dart' as drive;
+import 'package:google_sign_in/google_sign_in.dart';
+import '../models/expense_model.dart';
+import 'auth_service.dart';
+
+class GoogleDriveService {
+  final AuthService _authService = AuthService();
+  static const String appFolderName = 'Expense Tracker';
+  static const String backupFileName = 'expenses_backup.json';
+
+  // Get authenticated Drive API client
+  Future<drive.DriveApi?> _getDriveApi() async {
+    try {
+      // Try to get existing account first
+      GoogleSignInAccount? account =
+          await _authService.getGoogleSignInAccount();
+
+      // If no account, try to get current user from GoogleSignIn instance
+      if (account == null) {
+        account = _authService.googleSignInInstance.currentUser;
+      }
+
+      // If still no account, request sign-in with Drive scopes
+      if (account == null) {
+        print(
+            'No existing Google account, requesting sign-in with Drive scopes...');
+        account = await _authService.googleSignInInstance.signIn();
+      }
+
+      if (account == null) {
+        print('User cancelled Google Sign In or sign-in failed');
+        return null;
+      }
+
+      print('Using Google account: ${account.email}');
+
+      // Get auth headers for Drive API
+      final authHeaders = await account.authHeaders;
+      print('Got auth headers, creating Drive API client...');
+
+      final authenticateClient = GoogleAuthClient(authHeaders);
+      final driveApi = drive.DriveApi(authenticateClient);
+
+      print('✅ Drive API authenticated successfully for: ${account.email}');
+      return driveApi;
+    } catch (e, stackTrace) {
+      print('❌ Error getting Drive API: $e');
+      print('Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  // Find or create app folder
+  Future<String?> _getOrCreateAppFolder(drive.DriveApi driveApi) async {
+    try {
+      // Search for existing folder
+      final fileList = await driveApi.files.list(
+        q: "name='$appFolderName' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        spaces: 'drive',
+        $fields: 'files(id, name)',
+      );
+
+      if (fileList.files != null && fileList.files!.isNotEmpty) {
+        return fileList.files!.first.id;
+      }
+
+      // Create new folder
+      final folder = drive.File();
+      folder.name = appFolderName;
+      folder.mimeType = 'application/vnd.google-apps.folder';
+
+      final createdFolder = await driveApi.files.create(folder);
+      return createdFolder.id;
+    } catch (e) {
+      print('Error creating/finding app folder: $e');
+      return null;
+    }
+  }
+
+  // Backup expenses to Google Drive
+  Future<bool> backupExpenses(List<Expense> expenses) async {
+    try {
+      print('Starting Google Drive backup for ${expenses.length} expenses...');
+
+      final driveApi = await _getDriveApi();
+      if (driveApi == null) {
+        print('Failed to get Drive API - user might not be signed in');
+        return false;
+      }
+
+      print('Getting or creating app folder...');
+      final folderId = await _getOrCreateAppFolder(driveApi);
+      if (folderId == null) {
+        print('Failed to get/create folder');
+        return false;
+      }
+      print('Folder ID: $folderId');
+
+      // Prepare backup data
+      final backupData = {
+        'backupDate': DateTime.now().toIso8601String(),
+        'userId': _authService.getUserId(),
+        'userEmail': _authService.getUserEmail(),
+        'expensesCount': expenses.length,
+        'expenses': expenses.map((e) => e.toJson()).toList(),
+      };
+
+      final jsonData = jsonEncode(backupData);
+      print('Backup data size: ${jsonData.length} bytes');
+
+      final media = drive.Media(
+        Stream.value(utf8.encode(jsonData)),
+        jsonData.length,
+      );
+
+      print('Checking for existing backup file...');
+      // Check if backup file exists
+      final existingFiles = await driveApi.files.list(
+        q: "name='$backupFileName' and '$folderId' in parents and trashed=false",
+        spaces: 'drive',
+        $fields: 'files(id, name)',
+      );
+
+      if (existingFiles.files != null && existingFiles.files!.isNotEmpty) {
+        // Update existing file
+        print('Updating existing backup file...');
+        final fileId = existingFiles.files!.first.id!;
+        await driveApi.files.update(
+          drive.File(),
+          fileId,
+          uploadMedia: media,
+        );
+        print('✅ Backup updated successfully!');
+      } else {
+        // Create new backup file
+        print('Creating new backup file...');
+        final file = drive.File();
+        file.name = backupFileName;
+        file.parents = [folderId];
+        file.mimeType = 'application/json';
+
+        await driveApi.files.create(
+          file,
+          uploadMedia: media,
+        );
+        print('✅ Backup created successfully!');
+      }
+
+      return true;
+    } catch (e, stackTrace) {
+      print('❌ Error backing up to Google Drive: $e');
+      print('Stack trace: $stackTrace');
+      return false;
+    }
+  }
+
+  // Restore expenses from Google Drive
+  Future<List<Expense>?> restoreExpenses() async {
+    try {
+      final driveApi = await _getDriveApi();
+      if (driveApi == null) {
+        print('Failed to get Drive API');
+        return null;
+      }
+
+      final folderId = await _getOrCreateAppFolder(driveApi);
+      if (folderId == null) {
+        print('Failed to get/create folder');
+        return null;
+      }
+
+      // Find backup file
+      final fileList = await driveApi.files.list(
+        q: "name='$backupFileName' and '$folderId' in parents and trashed=false",
+        spaces: 'drive',
+        $fields: 'files(id, name)',
+      );
+
+      if (fileList.files == null || fileList.files!.isEmpty) {
+        print('No backup file found');
+        return null;
+      }
+
+      final fileId = fileList.files!.first.id!;
+
+      // Download file content
+      final media = await driveApi.files.get(
+        fileId,
+        downloadOptions: drive.DownloadOptions.fullMedia,
+      ) as drive.Media;
+
+      final dataStream = media.stream;
+      final data = await dataStream.fold<List<int>>(
+        [],
+        (previous, element) => previous..addAll(element),
+      );
+
+      final jsonString = utf8.decode(data);
+      final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
+
+      final expensesJson = backupData['expenses'] as List<dynamic>;
+      final expenses = expensesJson
+          .map((e) => Expense.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      print('Restore successful: ${expenses.length} expenses');
+      return expenses;
+    } catch (e) {
+      print('Error restoring from Google Drive: $e');
+      return null;
+    }
+  }
+
+  // Get last backup time
+  Future<DateTime?> getLastBackupTime() async {
+    try {
+      final driveApi = await _getDriveApi();
+      if (driveApi == null) return null;
+
+      final folderId = await _getOrCreateAppFolder(driveApi);
+      if (folderId == null) return null;
+
+      final fileList = await driveApi.files.list(
+        q: "name='$backupFileName' and '$folderId' in parents and trashed=false",
+        spaces: 'drive',
+        $fields: 'files(id, name, modifiedTime)',
+      );
+
+      if (fileList.files != null && fileList.files!.isNotEmpty) {
+        return fileList.files!.first.modifiedTime;
+      }
+
+      return null;
+    } catch (e) {
+      print('Error getting last backup time: $e');
+      return null;
+    }
+  }
+}
+
+// Custom HTTP client for Google APIs
+class GoogleAuthClient extends http.BaseClient {
+  final Map<String, String> _headers;
+  final http.Client _client = http.Client();
+
+  GoogleAuthClient(this._headers);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    return _client.send(request..headers.addAll(_headers));
+  }
+}
