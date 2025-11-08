@@ -10,6 +10,7 @@ import 'screens/dashboard_page.dart';
 import 'screens/history_page.dart';
 import 'screens/settings_page.dart';
 import 'screens/login_page.dart';
+import 'screens/statement_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +53,7 @@ class SmartBudgetApp extends StatelessWidget {
                 routes: {
                   '/history': (context) => const HistoryPage(),
                   '/settings': (context) => const SettingsPage(),
+                  '/statement': (context) => const StatementPage(),
                 },
               );
             },

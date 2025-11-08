@@ -4,6 +4,7 @@ import '../models/expense_model.dart';
 import '../providers/expense_provider.dart';
 import '../widgets/expense_card.dart';
 import 'add_expense_page.dart';
+import 'add_income_page.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -15,6 +16,7 @@ class HistoryPage extends StatefulWidget {
 class _HistoryPageState extends State<HistoryPage> {
   String _searchQuery = '';
   String _filterCategory = 'All';
+  String _transactionType = 'All'; // 'All', 'Debit', 'Credit'
 
   @override
   Widget build(BuildContext context) {
@@ -22,9 +24,21 @@ class _HistoryPageState extends State<HistoryPage> {
 
     List<Expense> expenses = expenseProvider.expenses;
 
+    // Apply transaction type filter
+    if (_transactionType == 'Debit') {
+      expenses = expenses.where((e) => e.isDebit).toList();
+    } else if (_transactionType == 'Credit') {
+      expenses = expenses.where((e) => e.isCredit).toList();
+    }
+
     // Apply search filter
     if (_searchQuery.isNotEmpty) {
-      expenses = expenseProvider.searchExpenses(_searchQuery);
+      expenses = expenses
+          .where((e) =>
+              e.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              e.category.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              e.note.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
     }
 
     // Apply category filter
@@ -34,7 +48,16 @@ class _HistoryPageState extends State<HistoryPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Expense History'),
+        title: const Text('Transaction History'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: () {
+              Navigator.pushNamed(context, '/statement');
+            },
+            tooltip: 'Download Statement',
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -43,7 +66,7 @@ class _HistoryPageState extends State<HistoryPage> {
             padding: const EdgeInsets.all(16),
             child: TextField(
               decoration: InputDecoration(
-                hintText: 'Search expenses...',
+                hintText: 'Search transactions...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -57,6 +80,44 @@ class _HistoryPageState extends State<HistoryPage> {
             ),
           ),
 
+          // Transaction Type Filter
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: 'All',
+                        label: Text('All'),
+                        icon: Icon(Icons.list),
+                      ),
+                      ButtonSegment(
+                        value: 'Debit',
+                        label: Text('Expenses'),
+                        icon: Icon(Icons.remove_circle),
+                      ),
+                      ButtonSegment(
+                        value: 'Credit',
+                        label: Text('Income'),
+                        icon: Icon(Icons.add_circle),
+                      ),
+                    ],
+                    selected: {_transactionType},
+                    onSelectionChanged: (Set<String> newSelection) {
+                      setState(() {
+                        _transactionType = newSelection.first;
+                        _filterCategory = 'All'; // Reset category filter
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
           // Category Filter
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -64,14 +125,19 @@ class _HistoryPageState extends State<HistoryPage> {
             child: Row(
               children: [
                 _buildFilterChip('All'),
-                ...ExpenseCategory.all
-                    .map((category) => _buildFilterChip(category)),
+                // Show appropriate categories based on transaction type
+                if (_transactionType == 'Debit' || _transactionType == 'All')
+                  ...ExpenseCategory.all
+                      .map((category) => _buildFilterChip(category)),
+                if (_transactionType == 'Credit' || _transactionType == 'All')
+                  ...IncomeCategory.all
+                      .map((category) => _buildFilterChip(category)),
               ],
             ),
           ),
           const SizedBox(height: 16),
 
-          // Expense List
+          // Transaction List
           Expanded(
             child: expenses.isEmpty
                 ? Center(
@@ -104,8 +170,9 @@ class _HistoryPageState extends State<HistoryPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  AddExpensePage(expense: expense),
+                              builder: (context) => expense.isDebit
+                                  ? AddExpensePage(expense: expense)
+                                  : AddIncomePage(income: expense),
                             ),
                           );
                         },
@@ -124,6 +191,17 @@ class _HistoryPageState extends State<HistoryPage> {
 
   Widget _buildFilterChip(String category) {
     final isSelected = _filterCategory == category;
+    String icon = '';
+
+    if (category != 'All') {
+      // Check if it's an expense category or income category
+      if (ExpenseCategory.all.contains(category)) {
+        icon = ExpenseCategory.getIcon(category);
+      } else if (IncomeCategory.all.contains(category)) {
+        icon = IncomeCategory.getIcon(category);
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: FilterChip(
@@ -134,8 +212,7 @@ class _HistoryPageState extends State<HistoryPage> {
             _filterCategory = category;
           });
         },
-        avatar:
-            category != 'All' ? Text(ExpenseCategory.getIcon(category)) : null,
+        avatar: icon.isNotEmpty ? Text(icon) : null,
       ),
     );
   }
@@ -145,10 +222,12 @@ class _HistoryPageState extends State<HistoryPage> {
     Expense expense,
     ExpenseProvider provider,
   ) {
+    final itemType = expense.isDebit ? 'expense' : 'income';
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Expense'),
+        title:
+            Text('Delete ${itemType[0].toUpperCase()}${itemType.substring(1)}'),
         content: Text('Are you sure you want to delete "${expense.title}"?'),
         actions: [
           TextButton(
@@ -160,7 +239,9 @@ class _HistoryPageState extends State<HistoryPage> {
               provider.deleteExpense(expense.id);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Expense deleted')),
+                SnackBar(
+                    content: Text(
+                        '${itemType[0].toUpperCase()}${itemType.substring(1)} deleted')),
               );
             },
             child: const Text(

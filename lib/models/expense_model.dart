@@ -2,6 +2,12 @@ import 'package:hive/hive.dart';
 
 part 'expense_model.g.dart';
 
+// Transaction Types
+enum TransactionType {
+  debit, // Expense
+  credit, // Income
+}
+
 @HiveType(typeId: 0)
 class Expense extends HiveObject {
   @HiveField(0)
@@ -22,6 +28,9 @@ class Expense extends HiveObject {
   @HiveField(5)
   String note;
 
+  @HiveField(6)
+  String? type; // 'debit' or 'credit'
+
   Expense({
     required this.id,
     required this.title,
@@ -29,7 +38,12 @@ class Expense extends HiveObject {
     required this.amount,
     required this.date,
     required this.note,
-  });
+    String? type,
+  }) : type = type ??
+            'debit'; // Default to debit (expense) for backward compatibility
+
+  bool get isDebit => (type ?? 'debit') == 'debit';
+  bool get isCredit => (type ?? 'debit') == 'credit';
 
   Map<String, dynamic> toJson() {
     return {
@@ -39,6 +53,7 @@ class Expense extends HiveObject {
       'amount': amount,
       'date': date.toIso8601String(),
       'note': note,
+      'type': type,
     };
   }
 
@@ -50,6 +65,8 @@ class Expense extends HiveObject {
       amount: json['amount'],
       date: DateTime.parse(json['date']),
       note: json['note'],
+      type: json['type'] ??
+          'debit', // Default to debit for backward compatibility
     );
   }
 }
@@ -101,6 +118,63 @@ class ExpenseCategory {
         return {'color': 0xFFBA68C8}; // Purple
       default:
         return {'color': 0xFF90CAF9}; // Light Blue
+    }
+  }
+}
+
+// Income Categories
+class IncomeCategory {
+  static const String salary = 'Salary';
+  static const String business = 'Business';
+  static const String freelance = 'Freelance';
+  static const String investment = 'Investment';
+  static const String gift = 'Gift';
+  static const String other = 'Other';
+
+  static List<String> get all => [
+        salary,
+        business,
+        freelance,
+        investment,
+        gift,
+        other,
+      ];
+
+  static String getIcon(String category) {
+    switch (category) {
+      case salary:
+        return '💼';
+      case business:
+        return '🏢';
+      case freelance:
+        return '💻';
+      case investment:
+        return '📈';
+      case gift:
+        return '🎁';
+      case other:
+        return '💵';
+      default:
+        return '💵';
+    }
+  }
+
+  static Map<String, int> getCategoryColor(String category) {
+    switch (category) {
+      case salary:
+        return {'color': 0xFF66BB6A}; // Green
+      case business:
+        return {'color': 0xFF42A5F5}; // Blue
+      case freelance:
+        return {'color': 0xFFAB47BC}; // Purple
+      case investment:
+        return {'color': 0xFFFFCA28}; // Amber
+      case gift:
+        return {'color': 0xFFEC407A}; // Pink
+      case other:
+        return {'color': 0xFF26A69A}; // Teal
+      default:
+        return {'color': 0xFF26A69A}; // Teal
     }
   }
 }

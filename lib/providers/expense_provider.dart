@@ -15,6 +15,19 @@ class ExpenseProvider with ChangeNotifier {
   DateTime get selectedMonth => _selectedMonth;
   bool get autoSync => _autoSync;
 
+  // Get only debit transactions (expenses)
+  List<Expense> get debits => _expenses.where((e) => e.isDebit).toList();
+
+  // Get only credit transactions (income)
+  List<Expense> get credits => _expenses.where((e) => e.isCredit).toList();
+
+  // Get current balance (total credits - total debits)
+  double get currentBalance {
+    final totalCredits = credits.fold(0.0, (sum, e) => sum + e.amount);
+    final totalDebits = debits.fold(0.0, (sum, e) => sum + e.amount);
+    return totalCredits - totalDebits;
+  }
+
   ExpenseProvider() {
     loadExpenses();
   }
@@ -125,8 +138,24 @@ class ExpenseProvider with ChangeNotifier {
     return _expenses
         .where((expense) =>
             expense.date.year == month.year &&
-            expense.date.month == month.month)
+            expense.date.month == month.month &&
+            expense.isDebit)
         .fold(0.0, (sum, expense) => sum + expense.amount);
+  }
+
+  // Get total income for a specific month
+  double getTotalIncomeForMonth(DateTime month) {
+    return _expenses
+        .where((expense) =>
+            expense.date.year == month.year &&
+            expense.date.month == month.month &&
+            expense.isCredit)
+        .fold(0.0, (sum, expense) => sum + expense.amount);
+  }
+
+  // Get balance for a specific month
+  double getBalanceForMonth(DateTime month) {
+    return getTotalIncomeForMonth(month) - getTotalExpenseForMonth(month);
   }
 
   // Get expenses for a specific month
@@ -140,7 +169,8 @@ class ExpenseProvider with ChangeNotifier {
 
   // Get category-wise expense for a month
   Map<String, double> getCategoryExpenseForMonth(DateTime month) {
-    final monthExpenses = getExpensesForMonth(month);
+    final monthExpenses =
+        getExpensesForMonth(month).where((expense) => expense.isDebit).toList();
     final Map<String, double> categoryExpense = {};
 
     for (var expense in monthExpenses) {
@@ -151,9 +181,25 @@ class ExpenseProvider with ChangeNotifier {
     return categoryExpense;
   }
 
+  // Get category-wise income for a month
+  Map<String, double> getCategoryIncomeForMonth(DateTime month) {
+    final monthIncomes = getExpensesForMonth(month)
+        .where((expense) => expense.isCredit)
+        .toList();
+    final Map<String, double> categoryIncome = {};
+
+    for (var income in monthIncomes) {
+      categoryIncome[income.category] =
+          (categoryIncome[income.category] ?? 0) + income.amount;
+    }
+
+    return categoryIncome;
+  }
+
   // Get daily expenses for a month (for bar chart)
   Map<int, double> getDailyExpenseForMonth(DateTime month) {
-    final monthExpenses = getExpensesForMonth(month);
+    final monthExpenses =
+        getExpensesForMonth(month).where((expense) => expense.isDebit).toList();
     final Map<int, double> dailyExpense = {};
 
     for (var expense in monthExpenses) {

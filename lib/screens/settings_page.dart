@@ -126,6 +126,21 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 16),
           ],
+
+          // Statement Section
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Download Statement'),
+              subtitle: const Text('Export transactions as PDF or CSV'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pushNamed(context, '/statement');
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+
           // Theme Section
           Card(
             child: Column(

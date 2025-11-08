@@ -7,6 +7,7 @@ import '../models/expense_model.dart';
 import '../widgets/category_pie_chart.dart';
 import '../widgets/daily_bar_chart.dart';
 import 'add_expense_page.dart';
+import 'add_income_page.dart';
 import 'category_report_page.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -25,6 +26,8 @@ class _DashboardPageState extends State<DashboardPage> {
     final budgetProvider = Provider.of<BudgetProvider>(context);
 
     final totalExpense = expenseProvider.getTotalExpenseForMonth(selectedMonth);
+    final totalIncome = expenseProvider.getTotalIncomeForMonth(selectedMonth);
+    final monthBalance = expenseProvider.getBalanceForMonth(selectedMonth);
     final categoryExpense =
         expenseProvider.getCategoryExpenseForMonth(selectedMonth);
     final dailyExpense = expenseProvider.getDailyExpenseForMonth(selectedMonth);
@@ -56,6 +59,10 @@ class _DashboardPageState extends State<DashboardPage> {
             _buildMonthSelector(),
             const SizedBox(height: 20),
 
+            // Balance Summary Card
+            _buildBalanceCard(context, totalIncome, totalExpense, monthBalance),
+            const SizedBox(height: 20),
+
             // Budget Progress Card
             _buildBudgetCard(
               context,
@@ -65,10 +72,6 @@ class _DashboardPageState extends State<DashboardPage> {
               remainingBudget,
               isOverBudget,
             ),
-            const SizedBox(height: 20),
-
-            // Total Expense Card
-            _buildTotalExpenseCard(context, totalExpense),
             const SizedBox(height: 20),
 
             // Category Expense Summary
@@ -138,17 +141,170 @@ class _DashboardPageState extends State<DashboardPage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AddExpensePage()),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Add Expense'),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AddIncomePage()),
+              );
+            },
+            heroTag: 'addIncome',
+            backgroundColor: Colors.green,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Income'),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton.extended(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AddExpensePage()),
+              );
+            },
+            heroTag: 'addExpense',
+            icon: const Icon(Icons.remove),
+            label: const Text('Add Expense'),
+          ),
+        ],
       ),
       bottomNavigationBar: _buildBottomNavBar(context),
+    );
+  }
+
+  Widget _buildBalanceCard(
+    BuildContext context,
+    double totalIncome,
+    double totalExpense,
+    double balance,
+  ) {
+    final isPositive = balance >= 0;
+    return Card(
+      elevation: 4,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isPositive
+                ? [Colors.green.shade400, Colors.green.shade600]
+                : [Colors.red.shade400, Colors.red.shade600],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Text(
+              'Current Balance',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '৳${balance.toStringAsFixed(2)}',
+              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.arrow_downward,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Income',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '৳${totalIncome.toStringAsFixed(2)}',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.arrow_upward,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Expense',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '৳${totalExpense.toStringAsFixed(2)}',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -271,48 +427,6 @@ class _DashboardPageState extends State<DashboardPage> {
                   ],
                 ),
               ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTotalExpenseCard(BuildContext context, double totalExpense) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Total Expense',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '৳${totalExpense.toStringAsFixed(2)}',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                ),
-              ],
-            ),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.account_balance_wallet,
-                size: 40,
-                color: Theme.of(context).colorScheme.primary,
-              ),
             ),
           ],
         ),

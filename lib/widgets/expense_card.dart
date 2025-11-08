@@ -18,9 +18,14 @@ class ExpenseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final categoryColor = Color(
-      ExpenseCategory.getCategoryColor(expense.category)['color']!,
-    );
+    // Get the appropriate category color and icon based on transaction type
+    final isCredit = expense.isCredit;
+    final categoryColor = isCredit
+        ? Color(IncomeCategory.getCategoryColor(expense.category)['color']!)
+        : Color(ExpenseCategory.getCategoryColor(expense.category)['color']!);
+    final categoryIcon = isCredit
+        ? IncomeCategory.getIcon(expense.category)
+        : ExpenseCategory.getIcon(expense.category);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -41,7 +46,7 @@ class ExpenseCard extends StatelessWidget {
                 ),
                 child: Center(
                   child: Text(
-                    ExpenseCategory.getIcon(expense.category),
+                    categoryIcon,
                     style: const TextStyle(fontSize: 24),
                   ),
                 ),
@@ -103,12 +108,24 @@ class ExpenseCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    '৳${expense.amount.toStringAsFixed(2)}',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: categoryColor,
-                        ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isCredit ? Icons.add_circle : Icons.remove_circle,
+                        size: 16,
+                        color: isCredit ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '৳${expense.amount.toStringAsFixed(2)}',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: isCredit ? Colors.green : Colors.red,
+                                ),
+                      ),
+                    ],
                   ),
                   if (onEdit != null || onDelete != null) ...[
                     const SizedBox(height: 8),
