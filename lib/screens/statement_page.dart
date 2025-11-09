@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -206,206 +207,481 @@ class _StatementPageState extends State<StatementPage> {
     }
 
     final balance = totalIncome - totalExpense;
+    final openingBalance = balance - (totalIncome - totalExpense);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Download Statement'),
+        title: const Text('Account Statement'),
+        backgroundColor: Colors.blue.shade900,
+        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Info Card
-            Card(
-              color: Colors.blue.shade50,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info, color: Colors.blue),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Select a date range to generate your account statement',
-                        style: TextStyle(color: Colors.blue.shade900),
-                      ),
-                    ),
-                  ],
+            // Professional Header Section
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue.shade900, Colors.blue.shade700],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-
-            // Quick Period Selection
-            Text(
-              'Quick Select',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                'Last 30 Days',
-                'This Month',
-                'Last Month',
-                'Last 3 Months',
-                'Last 6 Months',
-                'This Year',
-              ].map((period) {
-                return ActionChip(
-                  label: Text(period),
-                  onPressed: () => _selectQuickPeriod(period),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 24),
-
-            // Custom Date Range
-            Text(
-              'Custom Date Range',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _selectStartDate(context),
-                    child: InputDecorator(
-                      decoration: InputDecoration(
-                        labelText: 'Start Date',
-                        prefixIcon: const Icon(Icons.calendar_today),
-                        border: OutlineInputBorder(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                      ),
-                      child: Text(
-                        DateFormat('MMM dd, yyyy').format(_startDate),
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: InkWell(
-                    onTap: () => _selectEndDate(context),
-                    child: InputDecorator(
-                      decoration: InputDecoration(
-                        labelText: 'End Date',
-                        prefixIcon: const Icon(Icons.calendar_today),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        child: const Icon(
+                          Icons.account_balance,
+                          color: Colors.white,
+                          size: 32,
                         ),
                       ),
-                      child: Text(
-                        DateFormat('MMM dd, yyyy').format(_endDate),
-                        style: const TextStyle(fontSize: 14),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'SMART BUDGET',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Personal Finance Management',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1,
                       ),
                     ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Summary Card
-            Card(
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Statement Summary',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'STATEMENT PERIOD',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${DateFormat('dd MMM yyyy').format(_startDate)} - ${DateFormat('dd MMM yyyy').format(_endDate)}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Generated: ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())}',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
                     ),
-                    const Divider(height: 24),
-                    _buildSummaryRow('Transactions', '${transactions.length}'),
-                    const SizedBox(height: 12),
-                    _buildSummaryRow(
-                      'Total Income',
-                      '৳${totalIncome.toStringAsFixed(2)}',
-                      color: Colors.green,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSummaryRow(
-                      'Total Expense',
-                      '৳${totalExpense.toStringAsFixed(2)}',
-                      color: Colors.red,
-                    ),
-                    const Divider(height: 24),
-                    _buildSummaryRow(
-                      'Balance',
-                      '৳${balance.toStringAsFixed(2)}',
-                      color: balance >= 0 ? Colors.green : Colors.red,
-                      isBold: true,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 32),
 
-            // Download Buttons
-            if (_isGenerating)
-              const Center(child: CircularProgressIndicator())
-            else ...[
-              ElevatedButton.icon(
-                onPressed: transactions.isEmpty ? null : _generatePdfStatement,
-                icon: const Icon(Icons.picture_as_pdf),
-                label: const Text('Download PDF Statement'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            // Content Section
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Quick Period Selection
+                  _buildSectionHeader(context, 'QUICK SELECT PERIOD'),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      'Last 30 Days',
+                      'This Month',
+                      'Last Month',
+                      'Last 3 Months',
+                      'Last 6 Months',
+                      'This Year',
+                    ].map((period) {
+                      return ChoiceChip(
+                        label: Text(period),
+                        selected: false,
+                        onSelected: (_) => _selectQuickPeriod(period),
+                        labelStyle: const TextStyle(fontSize: 12),
+                      );
+                    }).toList(),
                   ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: transactions.isEmpty ? null : _generateCsvStatement,
-                icon: const Icon(Icons.table_chart),
-                label: const Text('Download CSV Statement'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
+                  const SizedBox(height: 24),
 
-            if (transactions.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Text(
-                  'No transactions found for the selected period',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
+                  // Custom Date Range
+                  _buildSectionHeader(context, 'CUSTOM DATE RANGE'),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => _selectStartDate(context),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'START DATE',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade600,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Icon(Icons.calendar_today,
+                                        size: 16, color: Colors.blue.shade700),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      DateFormat('dd MMM yyyy')
+                                          .format(_startDate),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => _selectEndDate(context),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'END DATE',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade600,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Icon(Icons.calendar_today,
+                                        size: 16, color: Colors.blue.shade700),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      DateFormat('dd MMM yyyy')
+                                          .format(_endDate),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Account Summary Card - Banking Style
+                  _buildSectionHeader(context, 'ACCOUNT SUMMARY'),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(12),
+                              topRight: Radius.circular(12),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'TRANSACTIONS: ${transactions.length}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: balance >= 0
+                                      ? Colors.green.shade50
+                                      : Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: balance >= 0
+                                        ? Colors.green.shade300
+                                        : Colors.red.shade300,
+                                  ),
+                                ),
+                                child: Text(
+                                  balance >= 0 ? 'SURPLUS' : 'DEFICIT',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: balance >= 0
+                                        ? Colors.green.shade700
+                                        : Colors.red.shade700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              _buildProfessionalSummaryRow(
+                                'Opening Balance',
+                                openingBalance,
+                                Colors.blue.shade700,
+                              ),
+                              const Divider(height: 24),
+                              _buildProfessionalSummaryRow(
+                                'Total Credits (+)',
+                                totalIncome,
+                                Colors.green.shade700,
+                              ),
+                              const SizedBox(height: 12),
+                              _buildProfessionalSummaryRow(
+                                'Total Debits (-)',
+                                totalExpense,
+                                Colors.red.shade700,
+                              ),
+                              const Divider(height: 24),
+                              _buildProfessionalSummaryRow(
+                                'Closing Balance',
+                                balance,
+                                balance >= 0
+                                    ? Colors.green.shade700
+                                    : Colors.red.shade700,
+                                isBold: true,
+                                isLarge: true,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Download Buttons
+                  if (_isGenerating)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  else if (transactions.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(Icons.info_outline,
+                              color: Colors.orange.shade700, size: 48),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No Transactions Found',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade900,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'No transactions found for the selected period.\nPlease adjust your date range.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.orange.shade700,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else ...[
+                    ElevatedButton.icon(
+                      onPressed: _generatePdfStatement,
+                      icon: const Icon(Icons.picture_as_pdf, size: 20),
+                      label: const Text(
+                        'DOWNLOAD PDF STATEMENT',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade900,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _generateCsvStatement,
+                      icon: Icon(Icons.table_chart,
+                          size: 20, color: Colors.blue.shade900),
+                      label: Text(
+                        'DOWNLOAD CSV STATEMENT',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                          color: Colors.blue.shade900,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        side: BorderSide(color: Colors.blue.shade900, width: 2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // Footer Note
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline,
+                              size: 18, color: Colors.blue.shade700),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Your statement will be downloaded in professional banking format with running balance and transaction details.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue.shade900,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                ],
               ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSummaryRow(
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+        color: Colors.grey.shade700,
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  Widget _buildProfessionalSummaryRow(
     String label,
-    String value, {
-    Color? color,
+    double amount,
+    Color color, {
     bool isBold = false,
+    bool isLarge = false,
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -413,16 +689,18 @@ class _StatementPageState extends State<StatementPage> {
         Text(
           label,
           style: TextStyle(
-            fontSize: isBold ? 16 : 14,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            fontSize: isLarge ? 15 : 13,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+            color: Colors.grey.shade700,
           ),
         ),
         Text(
-          value,
+          '৳${amount.toStringAsFixed(2)}',
           style: TextStyle(
-            fontSize: isBold ? 18 : 14,
-            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+            fontSize: isLarge ? 20 : 15,
+            fontWeight: FontWeight.bold,
             color: color,
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ],
