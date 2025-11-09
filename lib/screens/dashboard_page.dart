@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../providers/expense_provider.dart';
 import '../providers/budget_provider.dart';
 import '../models/expense_model.dart';
@@ -43,9 +42,9 @@ class _DashboardPageState extends State<DashboardPage> {
         title: const Text('Smart Budget'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.calendar_today),
             onPressed: () {
-              Navigator.pushNamed(context, '/settings');
+              _showMonthPicker(context);
             },
           ),
         ],
@@ -55,12 +54,12 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Month Selector
-            _buildMonthSelector(),
-            const SizedBox(height: 20),
-
             // Balance Summary Card
             _buildBalanceCard(context, totalIncome, totalExpense, monthBalance),
+            const SizedBox(height: 20),
+
+            // Quick Action Buttons
+            _buildQuickActionButtons(context),
             const SizedBox(height: 20),
 
             // Budget Progress Card
@@ -141,36 +140,86 @@ class _DashboardPageState extends State<DashboardPage> {
           ],
         ),
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton.extended(
+      bottomNavigationBar: _buildBottomNavBar(context),
+    );
+  }
+
+  Future<void> _showMonthPicker(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedMonth,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      helpText: 'Select Month',
+      initialDatePickerMode: DatePickerMode.day,
+    );
+
+    if (picked != null && picked != selectedMonth) {
+      setState(() {
+        selectedMonth = DateTime(picked.year, picked.month, 1);
+      });
+    }
+  }
+
+  Widget _buildQuickActionButtons(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const AddIncomePage()),
               );
             },
-            heroTag: 'addIncome',
-            backgroundColor: Colors.green,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Income'),
+            icon: const Icon(Icons.add_circle_outline, size: 24),
+            label: const Text(
+              'Add Income',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 3,
+            ),
           ),
-          const SizedBox(height: 16),
-          FloatingActionButton.extended(
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const AddExpensePage()),
               );
             },
-            heroTag: 'addExpense',
-            icon: const Icon(Icons.remove),
-            label: const Text('Add Expense'),
+            icon: const Icon(Icons.remove_circle_outline, size: 24),
+            label: const Text(
+              'Add Expense',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 3,
+            ),
           ),
-        ],
-      ),
-      bottomNavigationBar: _buildBottomNavBar(context),
+        ),
+      ],
     );
   }
 
@@ -301,48 +350,6 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ),
               ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMonthSelector() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.chevron_left),
-              onPressed: () {
-                setState(() {
-                  selectedMonth = DateTime(
-                    selectedMonth.year,
-                    selectedMonth.month - 1,
-                  );
-                });
-              },
-            ),
-            Text(
-              DateFormat('MMMM yyyy').format(selectedMonth),
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.chevron_right),
-              onPressed: () {
-                setState(() {
-                  selectedMonth = DateTime(
-                    selectedMonth.year,
-                    selectedMonth.month + 1,
-                  );
-                });
-              },
             ),
           ],
         ),
