@@ -207,7 +207,8 @@ class _StatementPageState extends State<StatementPage> {
     }
 
     final balance = totalIncome - totalExpense;
-    final openingBalance = balance - (totalIncome - totalExpense);
+    // Opening balance is 0 for the statement period
+    final openingBalance = 0.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -695,7 +696,7 @@ class _StatementPageState extends State<StatementPage> {
           ),
         ),
         Text(
-          '৳${amount.toStringAsFixed(2)}',
+          '${amount.toStringAsFixed(2)}',
           style: TextStyle(
             fontSize: isLarge ? 20 : 15,
             fontWeight: FontWeight.bold,

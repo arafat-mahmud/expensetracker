@@ -196,7 +196,6 @@ class _AddExpensePageState extends State<AddExpensePage> {
                   labelText: 'Amount',
                   hintText: '0.00',
                   prefixIcon: const Icon(Icons.attach_money),
-                  prefixText: '৳ ',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

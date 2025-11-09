@@ -255,7 +255,7 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              '৳${balance.toStringAsFixed(2)}',
+              '${balance.toStringAsFixed(2)}',
               style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -295,7 +295,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '৳${totalIncome.toStringAsFixed(2)}',
+                          '${totalIncome.toStringAsFixed(2)}',
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
                                     color: Colors.white,
@@ -338,7 +338,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '৳${totalExpense.toStringAsFixed(2)}',
+                          '${totalExpense.toStringAsFixed(2)}',
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
                                     color: Colors.white,
@@ -382,7 +382,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                 ),
                 Text(
-                  '৳${monthlyBudget.toStringAsFixed(0)}',
+                  '${monthlyBudget.toStringAsFixed(0)}',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -409,7 +409,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Text(
-                      '৳${totalExpense.toStringAsFixed(2)}',
+                      '${totalExpense.toStringAsFixed(2)}',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: isOverBudget ? Colors.red : Colors.green,
@@ -425,7 +425,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     Text(
-                      '৳${remainingBudget.toStringAsFixed(2)}',
+                      '${remainingBudget.toStringAsFixed(2)}',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: isOverBudget ? Colors.red : Colors.green,
@@ -486,7 +486,7 @@ class _DashboardPageState extends State<DashboardPage> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             trailing: Text(
-              '৳${amount.toStringAsFixed(2)}',
+              '${amount.toStringAsFixed(2)}',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,

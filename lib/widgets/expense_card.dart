@@ -118,7 +118,7 @@ class ExpenseCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '৳${expense.amount.toStringAsFixed(2)}',
+                        '${expense.amount.toStringAsFixed(2)}',
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,

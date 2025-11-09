@@ -246,7 +246,6 @@ class _AddIncomePageState extends State<AddIncomePage> {
                   labelText: 'Amount',
                   hintText: '0.00',
                   prefixIcon: const Icon(Icons.attach_money),
-                  prefixText: '৳ ',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

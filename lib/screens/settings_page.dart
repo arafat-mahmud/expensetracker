@@ -172,7 +172,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   leading: const Icon(Icons.account_balance_wallet),
                   title: const Text('Monthly Budget'),
                   subtitle: Text(
-                      '৳${budgetProvider.monthlyBudget.toStringAsFixed(0)}'),
+                      '${budgetProvider.monthlyBudget.toStringAsFixed(0)}'),
                   trailing: IconButton(
                     icon: const Icon(Icons.edit),
                     onPressed: () {
@@ -360,7 +360,6 @@ class _SettingsPageState extends State<SettingsPage> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
             labelText: 'Budget Amount',
-            prefixText: '৳ ',
             border: OutlineInputBorder(),
           ),
         ),

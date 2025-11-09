@@ -237,7 +237,7 @@ class StatementService {
           ),
           pw.SizedBox(height: 6),
           pw.Text(
-            '৳${amount.toStringAsFixed(2)}',
+            '${amount.toStringAsFixed(2)}',
             style: pw.TextStyle(
               fontSize: 11,
               fontWeight: pw.FontWeight.bold,
@@ -294,7 +294,7 @@ class StatementService {
             _buildProfessionalTableCell('',
                 isBold: true, alignment: pw.Alignment.centerRight),
             _buildProfessionalTableCell(
-              '৳${runningBalance.toStringAsFixed(2)}',
+              '${runningBalance.toStringAsFixed(2)}',
               isBold: true,
               alignment: pw.Alignment.centerRight,
             ),
@@ -326,19 +326,19 @@ class StatementService {
               _buildProfessionalTableCell(
                 transaction.isCredit
                     ? '-'
-                    : '৳${transaction.amount.toStringAsFixed(2)}',
+                    : '${transaction.amount.toStringAsFixed(2)}',
                 alignment: pw.Alignment.centerRight,
                 color: transaction.isCredit ? null : PdfColors.red700,
               ),
               _buildProfessionalTableCell(
                 transaction.isCredit
-                    ? '৳${transaction.amount.toStringAsFixed(2)}'
+                    ? '${transaction.amount.toStringAsFixed(2)}'
                     : '-',
                 alignment: pw.Alignment.centerRight,
                 color: transaction.isCredit ? PdfColors.green700 : null,
               ),
               _buildProfessionalTableCell(
-                '৳${runningBalance.toStringAsFixed(2)}',
+                '${runningBalance.toStringAsFixed(2)}',
                 alignment: pw.Alignment.centerRight,
                 isBold: true,
               ),
@@ -357,7 +357,7 @@ class StatementService {
             _buildProfessionalTableCell('',
                 isBold: true, alignment: pw.Alignment.centerRight),
             _buildProfessionalTableCell(
-              '৳${runningBalance.toStringAsFixed(2)}',
+              '${runningBalance.toStringAsFixed(2)}',
               isBold: true,
               alignment: pw.Alignment.centerRight,
               color:
@@ -452,8 +452,8 @@ class StatementService {
     // Sort transactions by date
     transactions.sort((a, b) => a.date.compareTo(b.date));
 
-    // Calculate opening balance
-    double openingBalance = balance - (totalIncome - totalExpense);
+    // Opening balance is 0 for the statement period
+    double openingBalance = 0.0;
     double runningBalance = openingBalance;
 
     // Create CSV data with professional banking format
@@ -470,10 +470,10 @@ class StatementService {
       [],
       // Summary Section
       ['ACCOUNT SUMMARY'],
-      ['Opening Balance', '৳${openingBalance.toStringAsFixed(2)}'],
-      ['Total Credits (+)', '৳${totalIncome.toStringAsFixed(2)}'],
-      ['Total Debits (-)', '৳${totalExpense.toStringAsFixed(2)}'],
-      ['Closing Balance', '৳${balance.toStringAsFixed(2)}'],
+      ['Opening Balance', '${openingBalance.toStringAsFixed(2)}'],
+      ['Total Credits (+)', '${totalIncome.toStringAsFixed(2)}'],
+      ['Total Debits (-)', '${totalExpense.toStringAsFixed(2)}'],
+      ['Closing Balance', '${balance.toStringAsFixed(2)}'],
       [],
       // Transaction Details Header
       ['TRANSACTION DETAILS'],
@@ -485,7 +485,7 @@ class StatementService {
         '',
         '',
         '',
-        '৳${runningBalance.toStringAsFixed(2)}'
+        '${runningBalance.toStringAsFixed(2)}'
       ],
       // Transaction Rows with running balance
       ...transactions.map((transaction) {
@@ -493,10 +493,10 @@ class StatementService {
         String credit = '-';
 
         if (transaction.isCredit) {
-          credit = '৳${transaction.amount.toStringAsFixed(2)}';
+          credit = '${transaction.amount.toStringAsFixed(2)}';
           runningBalance += transaction.amount;
         } else {
-          debit = '৳${transaction.amount.toStringAsFixed(2)}';
+          debit = '${transaction.amount.toStringAsFixed(2)}';
           runningBalance -= transaction.amount;
         }
 
@@ -506,7 +506,7 @@ class StatementService {
           transaction.category,
           debit,
           credit,
-          '৳${runningBalance.toStringAsFixed(2)}',
+          '${runningBalance.toStringAsFixed(2)}',
         ];
       }),
       // Closing Balance Row
@@ -516,7 +516,7 @@ class StatementService {
         '',
         '',
         '',
-        '৳${runningBalance.toStringAsFixed(2)}'
+        '${runningBalance.toStringAsFixed(2)}'
       ],
       [],
       // Footer Notes

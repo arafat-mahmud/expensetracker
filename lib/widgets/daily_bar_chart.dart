@@ -30,7 +30,7 @@ class DailyBarChart extends StatelessWidget {
           touchTooltipData: BarTouchTooltipData(
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               return BarTooltipItem(
-                '৳${rod.toY.toStringAsFixed(0)}',
+                '${rod.toY.toStringAsFixed(0)}',
                 const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -63,7 +63,7 @@ class DailyBarChart extends StatelessWidget {
               getTitlesWidget: (value, meta) {
                 if (value == 0) return const Text('');
                 return Text(
-                  '৳${(value / 1000).toStringAsFixed(0)}k',
+                  '${(value / 1000).toStringAsFixed(0)}k',
                   style: const TextStyle(fontSize: 10),
                 );
               },

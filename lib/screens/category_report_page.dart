@@ -79,7 +79,7 @@ class CategoryReportPage extends StatelessWidget {
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       Text(
-                        '৳${totalAmount.toStringAsFixed(2)}',
+                        '${totalAmount.toStringAsFixed(2)}',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: color,
