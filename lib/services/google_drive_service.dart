@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:google_sign_in/google_sign_in.dart';
@@ -236,6 +237,84 @@ class GoogleDriveService {
     } catch (e) {
       print('Error getting last backup time: $e');
       return null;
+    }
+  }
+
+  // Backup PDF file to Google Drive
+  Future<bool> backupPdfFile({
+    required String filePath,
+    required String fileName,
+  }) async {
+    try {
+      print('Starting PDF backup to Google Drive: $fileName');
+
+      final driveApi = await _getDriveApi();
+      if (driveApi == null) {
+        print('Failed to get Drive API - user might not be signed in');
+        return false;
+      }
+
+      print('Getting or creating app folder...');
+      final folderId = await _getOrCreateAppFolder(driveApi);
+      if (folderId == null) {
+        print('Failed to get/create folder');
+        return false;
+      }
+      print('Folder ID: $folderId');
+
+      // Read the PDF file
+      final file = File(filePath);
+      if (!await file.exists()) {
+        print('PDF file does not exist at path: $filePath');
+        return false;
+      }
+
+      final fileBytes = await file.readAsBytes();
+      print('PDF file size: ${fileBytes.length} bytes');
+
+      final media = drive.Media(
+        Stream.value(fileBytes),
+        fileBytes.length,
+      );
+
+      print('Checking for existing PDF file...');
+      // Check if file with same name exists
+      final existingFiles = await driveApi.files.list(
+        q: "name='$fileName' and '$folderId' in parents and trashed=false",
+        spaces: 'drive',
+        $fields: 'files(id, name)',
+      );
+
+      if (existingFiles.files != null && existingFiles.files!.isNotEmpty) {
+        // Update existing file
+        print('Updating existing PDF file...');
+        final fileId = existingFiles.files!.first.id!;
+        await driveApi.files.update(
+          drive.File(),
+          fileId,
+          uploadMedia: media,
+        );
+        print('✅ PDF updated successfully!');
+      } else {
+        // Create new PDF file
+        print('Creating new PDF file...');
+        final driveFile = drive.File();
+        driveFile.name = fileName;
+        driveFile.parents = [folderId];
+        driveFile.mimeType = 'application/pdf';
+
+        await driveApi.files.create(
+          driveFile,
+          uploadMedia: media,
+        );
+        print('✅ PDF uploaded successfully!');
+      }
+
+      return true;
+    } catch (e, stackTrace) {
+      print('❌ Error backing up PDF to Google Drive: $e');
+      print('Stack trace: $stackTrace');
+      return false;
     }
   }
 }

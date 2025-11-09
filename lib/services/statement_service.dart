@@ -6,10 +6,12 @@ import 'package:intl/intl.dart';
 import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter/material.dart';
 import '../models/expense_model.dart';
+import 'google_drive_service.dart';
 
 class StatementService {
-  /// Generate PDF Statement
+  /// Generate PDF Statement with preview and Google Drive upload option
   static Future<void> generatePdfStatement({
     required DateTime startDate,
     required DateTime endDate,
@@ -17,6 +19,7 @@ class StatementService {
     required double totalIncome,
     required double totalExpense,
     required double balance,
+    BuildContext? context,
   }) async {
     final pdf = pw.Document();
 
@@ -73,11 +76,143 @@ class StatementService {
       ),
     );
 
-    // Share or print PDF
-    await Printing.sharePdf(
-      bytes: await pdf.save(),
-      filename:
-          'statement_${DateFormat('yyyyMMdd').format(startDate)}_${DateFormat('yyyyMMdd').format(endDate)}.pdf',
+    // Get PDF bytes
+    final pdfBytes = await pdf.save();
+    final filename =
+        'statement_${DateFormat('yyyyMMdd').format(startDate)}_${DateFormat('yyyyMMdd').format(endDate)}.pdf';
+
+    // Preview PDF first with option to share or upload to Google Drive
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdfBytes,
+      name: filename,
+      format: PdfPageFormat.a4,
+    );
+
+    // Save to temporary file
+    final directory = await getTemporaryDirectory();
+    final filePath = '${directory.path}/$filename';
+    final file = File(filePath);
+    await file.writeAsBytes(pdfBytes);
+
+    // After preview is closed, ask user if they want to backup to Google Drive
+    if (context != null && context.mounted) {
+      final shouldBackup = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext dialogContext) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.cloud_upload, color: Colors.blue),
+              SizedBox(width: 12),
+              Text('Backup to Google Drive?'),
+            ],
+          ),
+          content: const Text(
+            'Would you like to backup this PDF statement to your Google Drive?\n\nThe file will be saved in your "Expense Tracker" folder.',
+            style: TextStyle(fontSize: 15),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Skip'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.cloud_upload, size: 18),
+              label: const Text('Backup'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldBackup == true && context.mounted) {
+        // Show loading dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext dialogContext) => const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 20),
+                Expanded(child: Text('Uploading to Google Drive...')),
+              ],
+            ),
+          ),
+        );
+
+        try {
+          final driveService = GoogleDriveService();
+
+          // Upload the PDF file to Google Drive
+          final success = await driveService.backupPdfFile(
+            filePath: filePath,
+            fileName: filename,
+          );
+
+          if (context.mounted) {
+            Navigator.of(context).pop(); // Close loading dialog
+
+            if (success) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.white),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child:
+                            Text('PDF successfully backed up to Google Drive!'),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Row(
+                    children: [
+                      Icon(Icons.error, color: Colors.white),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                            'Failed to backup to Google Drive. Please try again.'),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          if (context.mounted) {
+            Navigator.of(context).pop(); // Close loading dialog
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: $e'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        }
+      }
+    }
+
+    // Finally, share the file
+    await Share.shareXFiles(
+      [XFile(filePath)],
+      subject: 'Account Statement',
+      text:
+          'Statement from ${DateFormat('dd MMM yyyy').format(startDate)} to ${DateFormat('dd MMM yyyy').format(endDate)}',
     );
   }
 

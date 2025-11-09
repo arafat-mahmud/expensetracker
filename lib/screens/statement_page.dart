@@ -81,6 +81,7 @@ class _StatementPageState extends State<StatementPage> {
         totalIncome: totalIncome,
         totalExpense: totalExpense,
         balance: balance,
+        context: context,
       );
 
       if (mounted) {
