@@ -42,10 +42,11 @@ class _DashboardPageState extends State<DashboardPage> {
         title: const Text('Smart Budget'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.calendar_today),
+            icon: const Icon(Icons.event_note_rounded),
             onPressed: () {
               _showMonthPicker(context);
             },
+            tooltip: 'Select Month',
           ),
         ],
       ),
