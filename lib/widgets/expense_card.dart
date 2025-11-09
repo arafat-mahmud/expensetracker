@@ -111,14 +111,8 @@ class ExpenseCard extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        isCredit ? Icons.add_circle : Icons.remove_circle,
-                        size: 16,
-                        color: isCredit ? Colors.green : Colors.red,
-                      ),
-                      const SizedBox(width: 4),
                       Text(
-                        '${expense.amount.toStringAsFixed(2)}',
+                        '${isCredit ? '+' : '-'}${expense.amount.toStringAsFixed(2)}',
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,

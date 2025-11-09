@@ -14,7 +14,6 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  String _searchQuery = '';
   String _filterCategory = 'All';
   String _transactionType = 'All'; // 'All', 'Debit', 'Credit'
 
@@ -29,16 +28,6 @@ class _HistoryPageState extends State<HistoryPage> {
       expenses = expenses.where((e) => e.isDebit).toList();
     } else if (_transactionType == 'Credit') {
       expenses = expenses.where((e) => e.isCredit).toList();
-    }
-
-    // Apply search filter
-    if (_searchQuery.isNotEmpty) {
-      expenses = expenses
-          .where((e) =>
-              e.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              e.category.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              e.note.toLowerCase().contains(_searchQuery.toLowerCase()))
-          .toList();
     }
 
     // Apply category filter
@@ -61,24 +50,7 @@ class _HistoryPageState extends State<HistoryPage> {
       ),
       body: Column(
         children: [
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search transactions...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-            ),
-          ),
+          const SizedBox(height: 16),
 
           // Transaction Type Filter
           Padding(
