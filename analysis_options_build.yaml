@@ -1,0 +1,13 @@
+# Build optimization settings for Flutter
+# Use this during release builds to optimize app size
+
+# Reduce the number of isolates
+build:
+  # Enable tree-shaking
+  tree-shake-icons: true
+  
+  # Split debug info
+  split-debug-info: /build/app/outputs/symbols
+  
+  # Obfuscate Dart code
+  obfuscate: true
