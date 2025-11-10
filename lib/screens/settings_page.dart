@@ -15,29 +15,6 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  DateTime? _lastBackupTime;
-  bool _isLoadingBackup = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadLastBackupTime();
-  }
-
-  Future<void> _loadLastBackupTime() async {
-    if (!mounted) return;
-
-    final expenseProvider =
-        Provider.of<ExpenseProvider>(context, listen: false);
-    final backupTime = await expenseProvider.getLastBackupTime();
-
-    if (!mounted) return;
-
-    setState(() {
-      _lastBackupTime = backupTime;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -107,20 +84,26 @@ class _SettingsPageState extends State<SettingsPage> {
                   ListTile(
                     leading: const Icon(Icons.backup),
                     title: const Text('Backup to Google Drive'),
-                    subtitle: _lastBackupTime != null
-                        ? Text(
-                            'Last backup: ${DateFormat('MMM dd, yyyy hh:mm a').format(_lastBackupTime!)}')
-                        : const Text('Backup all data to Google Drive'),
-                    trailing: _isLoadingBackup
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                    subtitle: expenseProvider.lastBackupTime != null
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                  'Last backup: ${DateFormat('MMM dd, yyyy hh:mm a').format(expenseProvider.lastBackupTime!)}'),
+                              if (expenseProvider.autoSync)
+                                const Text(
+                                  'Auto-backup enabled',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.green,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                            ],
                           )
-                        : const Icon(Icons.chevron_right),
-                    onTap: _isLoadingBackup
-                        ? null
-                        : () => _backupToGoogleDrive(context, expenseProvider),
+                        : const Text('Backup all data to Google Drive'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _backupToGoogleDrive(context, expenseProvider),
                   ),
                   const Divider(),
                   ListTile(
@@ -277,31 +260,53 @@ class _SettingsPageState extends State<SettingsPage> {
       BuildContext context, ExpenseProvider expenseProvider) async {
     if (!mounted) return;
 
-    setState(() {
-      _isLoadingBackup = true;
-    });
+    // Show instant feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Backing up to Google Drive...'),
+          ],
+        ),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
 
+    // Backup in background - provider will update lastBackupTime automatically
     final success = await expenseProvider.backupToGoogleDrive();
 
     if (!mounted) return;
 
-    setState(() {
-      _isLoadingBackup = false;
-    });
-
-    if (success) {
-      await _loadLastBackupTime();
-    }
-
     if (mounted && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            success
-                ? 'Backup to Google Drive successful'
-                : 'Failed to backup to Google Drive',
+          content: Row(
+            children: [
+              Icon(
+                success ? Icons.check_circle : Icons.error,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                success
+                    ? 'Backup completed successfully!'
+                    : 'Backup failed. Try again.',
+              ),
+            ],
           ),
           backgroundColor: success ? Colors.green : Colors.red,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -331,26 +336,50 @@ class _SettingsPageState extends State<SettingsPage> {
 
     if (confirm != true || !context.mounted) return;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
+    // Show instant feedback
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Restoring from Google Drive...'),
+          ],
+        ),
+        duration: Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
       ),
     );
 
     final success = await expenseProvider.restoreFromGoogleDrive();
 
     if (context.mounted) {
-      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            success
-                ? 'Data restored from Google Drive successfully'
-                : 'Failed to restore from Google Drive',
+          content: Row(
+            children: [
+              Icon(
+                success ? Icons.check_circle : Icons.error,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                success
+                    ? 'Data restored successfully!'
+                    : 'Restore failed. Try again.',
+              ),
+            ],
           ),
           backgroundColor: success ? Colors.green : Colors.red,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -370,8 +399,10 @@ class _SettingsPageState extends State<SettingsPage> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(
             labelText: 'Budget Amount',
+            prefixIcon: Icon(Icons.account_balance_wallet),
             border: OutlineInputBorder(),
           ),
+          autofocus: true,
         ),
         actions: [
           TextButton(
@@ -382,14 +413,33 @@ class _SettingsPageState extends State<SettingsPage> {
             onPressed: () {
               final budget = double.tryParse(controller.text);
               if (budget != null && budget > 0) {
-                budgetProvider.setMonthlyBudget(budget);
+                // Close dialog immediately
                 Navigator.pop(context);
+
+                // Update budget - instant UI update via notifyListeners()
+                budgetProvider.setMonthlyBudget(budget);
+
+                // Show success feedback
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Budget updated successfully')),
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Text('Budget updated to ${budget.toStringAsFixed(0)}'),
+                      ],
+                    ),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid amount')),
+                  const SnackBar(
+                    content: Text('Please enter a valid amount'),
+                    backgroundColor: Colors.red,
+                  ),
                 );
               }
             },
@@ -436,10 +486,26 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           TextButton(
             onPressed: () {
-              expenseProvider.clearAllExpenses();
+              // Close dialog immediately
               Navigator.pop(context);
+
+              // Clear data - instant UI update
+              expenseProvider.clearAllExpenses();
+
+              // Show feedback
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('All data cleared')),
+                const SnackBar(
+                  content: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text('All data cleared'),
+                    ],
+                  ),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             },
             child: const Text(

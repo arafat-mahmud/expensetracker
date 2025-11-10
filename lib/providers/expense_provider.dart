@@ -8,12 +8,14 @@ class ExpenseProvider with ChangeNotifier {
   List<Expense> _expenses = [];
   DateTime _selectedMonth = DateTime.now();
   bool _autoSync = true; // Auto-sync to cloud
+  DateTime? _lastBackupTime; // Track last backup time
   final FirestoreService _firestoreService = FirestoreService();
   final GoogleDriveService _driveService = GoogleDriveService();
 
   List<Expense> get expenses => _expenses;
   DateTime get selectedMonth => _selectedMonth;
   bool get autoSync => _autoSync;
+  DateTime? get lastBackupTime => _lastBackupTime;
 
   // Get only debit transactions (expenses)
   List<Expense> get debits => _expenses.where((e) => e.isDebit).toList();
@@ -30,6 +32,17 @@ class ExpenseProvider with ChangeNotifier {
 
   ExpenseProvider() {
     loadExpenses();
+    _loadLastBackupTime();
+  }
+
+  // Load last backup time on initialization
+  Future<void> _loadLastBackupTime() async {
+    try {
+      _lastBackupTime = await _driveService.getLastBackupTime();
+      notifyListeners();
+    } catch (e) {
+      print('Failed to load last backup time: $e');
+    }
   }
 
   // Load all expenses from Hive
@@ -64,6 +77,8 @@ class ExpenseProvider with ChangeNotifier {
         final success = await _driveService.backupExpenses(_expenses);
         if (success) {
           print('✅ Auto-backup to Google Drive successful');
+          _lastBackupTime = DateTime.now();
+          notifyListeners(); // Update UI with new backup time
         } else {
           print('⚠️ Auto-backup to Google Drive failed');
         }
@@ -97,6 +112,8 @@ class ExpenseProvider with ChangeNotifier {
         final success = await _driveService.backupExpenses(_expenses);
         if (success) {
           print('✅ Auto-backup to Google Drive successful');
+          _lastBackupTime = DateTime.now();
+          notifyListeners(); // Update UI with new backup time
         } else {
           print('⚠️ Auto-backup to Google Drive failed');
         }
@@ -125,8 +142,12 @@ class ExpenseProvider with ChangeNotifier {
 
       // Auto-backup to Google Drive
       try {
-        await _driveService.backupExpenses(_expenses);
-        print('Auto-backup to Google Drive successful after delete');
+        final success = await _driveService.backupExpenses(_expenses);
+        if (success) {
+          print('Auto-backup to Google Drive successful after delete');
+          _lastBackupTime = DateTime.now();
+          notifyListeners(); // Update UI with new backup time
+        }
       } catch (e) {
         print('Failed to backup to Google Drive: $e');
       }
@@ -314,7 +335,12 @@ class ExpenseProvider with ChangeNotifier {
   // Manual backup to Google Drive
   Future<bool> backupToGoogleDrive() async {
     try {
-      return await _driveService.backupExpenses(_expenses);
+      final success = await _driveService.backupExpenses(_expenses);
+      if (success) {
+        _lastBackupTime = DateTime.now();
+        notifyListeners(); // Update UI with new backup time
+      }
+      return success;
     } catch (e) {
       print('Failed to backup to Google Drive: $e');
       return false;

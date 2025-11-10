@@ -60,15 +60,6 @@ class _AddIncomePageState extends State<AddIncomePage> {
 
   void _saveIncome() async {
     if (_formKey.currentState!.validate()) {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-
       // Use category name as title if title is empty
       final title = _titleController.text.trim().isEmpty
           ? _selectedCategory
@@ -89,43 +80,37 @@ class _AddIncomePageState extends State<AddIncomePage> {
       final expenseProvider =
           Provider.of<ExpenseProvider>(context, listen: false);
 
+      // Show instant feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Text(isEditing ? 'Income updated!' : 'Income added!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+
+      // Close the page immediately
+      if (mounted) Navigator.pop(context);
+
+      // Save in background - UI already updated via provider's notifyListeners()
       try {
         if (isEditing) {
           await expenseProvider.updateExpense(income);
         } else {
           await expenseProvider.addExpense(income);
         }
-
-        // Close loading dialog
-        if (mounted) Navigator.pop(context);
-
-        // Show success message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(isEditing
-                  ? 'Income updated successfully'
-                  : 'Income added successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-
-        // Close the page
-        if (mounted) Navigator.pop(context);
       } catch (e) {
-        // Close loading dialog
-        if (mounted) Navigator.pop(context);
-
-        // Show error message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        // Silent error handling - data is already saved locally
+        print('Background sync error: $e');
       }
     }
   }

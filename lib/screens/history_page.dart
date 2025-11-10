@@ -218,12 +218,27 @@ class _HistoryPageState extends State<HistoryPage> {
           ),
           TextButton(
             onPressed: () {
-              provider.deleteExpense(expense.id);
+              // Close dialog immediately
               Navigator.pop(context);
+
+              // Delete expense - instant UI update
+              provider.deleteExpense(expense.id);
+
+              // Show feedback
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                    content: Text(
-                        '${itemType[0].toUpperCase()}${itemType.substring(1)} deleted')),
+                  content: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Text(
+                          '${itemType[0].toUpperCase()}${itemType.substring(1)} deleted'),
+                    ],
+                  ),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             },
             child: const Text(
