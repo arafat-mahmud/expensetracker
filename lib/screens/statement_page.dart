@@ -106,62 +106,6 @@ class _StatementPageState extends State<StatementPage> {
     }
   }
 
-  void _generateCsvStatement() async {
-    setState(() => _isGenerating = true);
-
-    try {
-      final expenseProvider =
-          Provider.of<ExpenseProvider>(context, listen: false);
-
-      // Get transactions for the period
-      final transactions =
-          expenseProvider.filterByDateRange(_startDate, _endDate);
-
-      // Calculate totals
-      double totalIncome = 0;
-      double totalExpense = 0;
-
-      for (var transaction in transactions) {
-        if (transaction.isCredit) {
-          totalIncome += transaction.amount;
-        } else {
-          totalExpense += transaction.amount;
-        }
-      }
-
-      final balance = totalIncome - totalExpense;
-
-      await StatementService.generateCsvStatement(
-        startDate: _startDate,
-        endDate: _endDate,
-        transactions: transactions,
-        totalIncome: totalIncome,
-        totalExpense: totalExpense,
-        balance: balance,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('CSV statement generated successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error generating CSV: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      setState(() => _isGenerating = false);
-    }
-  }
-
   void _selectQuickPeriod(String period) {
     final now = DateTime.now();
     setState(() {
@@ -605,27 +549,6 @@ class _StatementPageState extends State<StatementPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         elevation: 2,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: _generateCsvStatement,
-                      icon: Icon(Icons.table_chart,
-                          size: 20, color: Colors.blue.shade900),
-                      label: Text(
-                        'DOWNLOAD CSV STATEMENT',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: Colors.blue.shade900,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        side: BorderSide(color: Colors.blue.shade900, width: 2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
                       ),
                     ),
                     const SizedBox(height: 24),

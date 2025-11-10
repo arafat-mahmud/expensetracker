@@ -1,16 +1,55 @@
-import 'dart:io';
+import 'dart:io' show File, Directory, Platform;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
-import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:open_file/open_file.dart' show OpenFile, ResultType;
 import '../models/expense_model.dart';
-import 'google_drive_service.dart';
 
 class StatementService {
+  static Future<Directory> _getStorageDirectory() async {
+    if (Platform.isAndroid) {
+      try {
+        // First try with regular storage permission
+        final storageStatus = await Permission.storage.request();
+        if (!storageStatus.isGranted) {
+          // If regular storage fails, try manage external storage
+          final manageStatus = await Permission.manageExternalStorage.request();
+          if (!manageStatus.isGranted) {
+            throw Exception(
+                'Storage permission is required to save the statement');
+          }
+        }
+
+        // Try to use the Downloads folder directly
+        final directory = Directory('/storage/emulated/0/Download');
+        if (!await directory.exists()) {
+          await directory.create(recursive: true);
+        }
+
+        // Test if we can actually write to the directory
+        final testFile = File('${directory.path}/test.txt');
+        await testFile.writeAsString('test');
+        await testFile.delete();
+
+        return directory;
+      } catch (e) {
+        // If Downloads directory fails, try application-specific directory
+        final directory = await getExternalStorageDirectory();
+        if (directory != null) {
+          return directory;
+        }
+      }
+    }
+
+    // For iOS or fallback
+    final directory = await getDownloadsDirectory() ??
+        await getApplicationDocumentsDirectory();
+    return directory;
+  }
+
   /// Generate PDF Statement with preview and Google Drive upload option
   static Future<void> generatePdfStatement({
     required DateTime startDate,
@@ -81,139 +120,44 @@ class StatementService {
     final filename =
         'statement_${DateFormat('yyyyMMdd').format(startDate)}_${DateFormat('yyyyMMdd').format(endDate)}.pdf';
 
-    // Preview PDF first with option to share or upload to Google Drive
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdfBytes,
-      name: filename,
-      format: PdfPageFormat.a4,
-    );
+    // Skip preview and save directly
 
-    // Save to temporary file
-    final directory = await getTemporaryDirectory();
+    // Get storage directory with proper permissions
+    final directory = await _getStorageDirectory(); // Ensure directory exists
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+    }
+
     final filePath = '${directory.path}/$filename';
     final file = File(filePath);
     await file.writeAsBytes(pdfBytes);
 
-    // After preview is closed, ask user if they want to backup to Google Drive
-    if (context != null && context.mounted) {
-      final shouldBackup = await showDialog<bool>(
-        context: context,
-        builder: (BuildContext dialogContext) => AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.cloud_upload, color: Colors.blue),
-              SizedBox(width: 12),
-              Text('Backup to Google Drive?'),
-            ],
-          ),
-          content: const Text(
-            'Would you like to backup this PDF statement to your Google Drive?\n\nThe file will be saved in your "Expense Tracker" folder.',
-            style: TextStyle(fontSize: 15),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Skip'),
-            ),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              icon: const Icon(Icons.cloud_upload, size: 18),
-              label: const Text('Backup'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      );
+    // Open the file with the default PDF viewer
+    try {
+      final result = await OpenFile.open(filePath);
 
-      if (shouldBackup == true && context.mounted) {
-        // Show loading dialog
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext dialogContext) => const AlertDialog(
-            content: Row(
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 20),
-                Expanded(child: Text('Uploading to Google Drive...')),
-              ],
-            ),
+      if (result.type != ResultType.done &&
+          context != null &&
+          context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'File saved to ${directory.path}. Please open it manually.'),
+            duration: const Duration(seconds: 5),
           ),
         );
-
-        try {
-          final driveService = GoogleDriveService();
-
-          // Upload the PDF file to Google Drive
-          final success = await driveService.backupPdfFile(
-            filePath: filePath,
-            fileName: filename,
-          );
-
-          if (context.mounted) {
-            Navigator.of(context).pop(); // Close loading dialog
-
-            if (success) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Row(
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.white),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child:
-                            Text('PDF successfully backed up to Google Drive!'),
-                      ),
-                    ],
-                  ),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Row(
-                    children: [
-                      Icon(Icons.error, color: Colors.white),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                            'Failed to backup to Google Drive. Please try again.'),
-                      ),
-                    ],
-                  ),
-                  backgroundColor: Colors.red,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            }
-          }
-        } catch (e) {
-          if (context.mounted) {
-            Navigator.of(context).pop(); // Close loading dialog
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error: $e'),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-          }
-        }
+      }
+    } catch (e) {
+      if (context != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'File saved to ${directory.path}. Please open it manually.'),
+            duration: const Duration(seconds: 5),
+          ),
+        );
       }
     }
-
-    // Finally, share the file
-    await Share.shareXFiles(
-      [XFile(filePath)],
-      subject: 'Account Statement',
-      text:
-          'Statement from ${DateFormat('dd MMM yyyy').format(startDate)} to ${DateFormat('dd MMM yyyy').format(endDate)}',
-    );
   }
 
   static pw.Widget _buildProfessionalHeader(
@@ -575,108 +519,5 @@ class StatementService {
     );
   }
 
-  /// Generate CSV Statement
-  static Future<void> generateCsvStatement({
-    required DateTime startDate,
-    required DateTime endDate,
-    required List<Expense> transactions,
-    required double totalIncome,
-    required double totalExpense,
-    required double balance,
-  }) async {
-    // Sort transactions by date
-    transactions.sort((a, b) => a.date.compareTo(b.date));
-
-    // Opening balance is 0 for the statement period
-    double openingBalance = 0.0;
-    double runningBalance = openingBalance;
-
-    // Create CSV data with professional banking format
-    List<List<dynamic>> rows = [
-      // Header
-      ['SMART BUDGET - ACCOUNT STATEMENT'],
-      [],
-      [
-        'Statement Period:',
-        '${DateFormat('dd MMM yyyy').format(startDate)} - ${DateFormat('dd MMM yyyy').format(endDate)}'
-      ],
-      ['Generated:', DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now())],
-      ['Total Transactions:', transactions.length.toString()],
-      [],
-      // Summary Section
-      ['ACCOUNT SUMMARY'],
-      ['Opening Balance', '${openingBalance.toStringAsFixed(2)}'],
-      ['Total Credits (+)', '${totalIncome.toStringAsFixed(2)}'],
-      ['Total Debits (-)', '${totalExpense.toStringAsFixed(2)}'],
-      ['Closing Balance', '${balance.toStringAsFixed(2)}'],
-      [],
-      // Transaction Details Header
-      ['TRANSACTION DETAILS'],
-      ['Date', 'Description', 'Category', 'Debit', 'Credit', 'Balance'],
-      // Opening Balance Row
-      [
-        '',
-        'Opening Balance',
-        '',
-        '',
-        '',
-        '${runningBalance.toStringAsFixed(2)}'
-      ],
-      // Transaction Rows with running balance
-      ...transactions.map((transaction) {
-        String debit = '-';
-        String credit = '-';
-
-        if (transaction.isCredit) {
-          credit = '${transaction.amount.toStringAsFixed(2)}';
-          runningBalance += transaction.amount;
-        } else {
-          debit = '${transaction.amount.toStringAsFixed(2)}';
-          runningBalance -= transaction.amount;
-        }
-
-        return [
-          DateFormat('dd/MM/yyyy').format(transaction.date),
-          transaction.title,
-          transaction.category,
-          debit,
-          credit,
-          '${runningBalance.toStringAsFixed(2)}',
-        ];
-      }),
-      // Closing Balance Row
-      [
-        '',
-        'Closing Balance',
-        '',
-        '',
-        '',
-        '${runningBalance.toStringAsFixed(2)}'
-      ],
-      [],
-      // Footer Notes
-      ['NOTES:'],
-      ['• This is a computer-generated statement'],
-      ['• Debit represents money spent, Credit represents money received'],
-      ['• Balance column shows running account balance after each transaction'],
-    ];
-
-    // Convert to CSV string
-    String csv = const ListToCsvConverter().convert(rows);
-
-    // Save to temporary file
-    final directory = await getTemporaryDirectory();
-    final path =
-        '${directory.path}/statement_${DateFormat('yyyyMMdd').format(startDate)}_${DateFormat('yyyyMMdd').format(endDate)}.csv';
-    final file = File(path);
-    await file.writeAsString(csv);
-
-    // Share the file
-    await Share.shareXFiles(
-      [XFile(path)],
-      subject: 'Account Statement',
-      text:
-          'Statement from ${DateFormat('dd MMM yyyy').format(startDate)} to ${DateFormat('dd MMM yyyy').format(endDate)}',
-    );
-  }
+  // CSV functionality has been removed
 }
