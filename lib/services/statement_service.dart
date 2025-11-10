@@ -493,29 +493,81 @@ class StatementService {
     );
   }
 
+  static pw.Widget _buildBulletPoint(String text) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 2),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(width: 15),
+          pw.Container(
+            width: 3,
+            height: 3,
+            margin: const pw.EdgeInsets.only(top: 3, right: 8),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey700,
+              shape: pw.BoxShape.circle,
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Text(
+              text,
+              style: pw.TextStyle(
+                fontSize: 8,
+                color: PdfColors.grey800,
+                lineSpacing: 1.5,
+                font: pw.Font.helvetica(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   static pw.Widget _buildStatementFooter() {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Divider(color: PdfColors.grey400),
-        pw.SizedBox(height: 8),
-        pw.Text(
-          'IMPORTANT NOTES:',
-          style: pw.TextStyle(
-            fontSize: 8,
-            fontWeight: pw.FontWeight.bold,
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey50,
+        borderRadius: pw.BorderRadius.circular(4),
+        border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+      ),
+      padding: const pw.EdgeInsets.all(12),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Row(
+            children: [
+              pw.Container(
+                width: 3,
+                height: 14,
+                margin: const pw.EdgeInsets.only(right: 6),
+                decoration: const pw.BoxDecoration(
+                  color: PdfColors.blue900,
+                ),
+              ),
+              pw.Text(
+                'IMPORTANT NOTES',
+                style: pw.TextStyle(
+                  fontSize: 9,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.blue900,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
-        ),
-        pw.SizedBox(height: 4),
-        pw.Text(
-          '• This is a computer-generated statement and does not require a signature.\n• Please verify all transactions and report any discrepancies immediately.\n• Debit represents money spent, Credit represents money received.\n• Balance column shows your running account balance after each transaction.',
-          style: const pw.TextStyle(
-            fontSize: 7,
-            color: PdfColors.grey700,
-            lineSpacing: 2,
-          ),
-        ),
-      ],
+          pw.SizedBox(height: 8),
+          _buildBulletPoint(
+              'This is a computer-generated statement and does not require a signature.'),
+          _buildBulletPoint(
+              'Please verify all transactions and report any discrepancies immediately.'),
+          _buildBulletPoint(
+              'Debit represents money spent, Credit represents money received.'),
+          _buildBulletPoint(
+              'Balance column shows your running account balance after each transaction.'),
+        ],
+      ),
     );
   }
 
