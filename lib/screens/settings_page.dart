@@ -190,7 +190,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 const Divider(),
                 ListTile(
                   leading: const Icon(Icons.code),
-                  title: const Text('About SmartBudget'),
+                  title: const Text('About Expense Tracker'),
                   subtitle: const Text('A personal daily expense tracker'),
                   onTap: () {
                     _showAboutDialog(context);
@@ -453,7 +453,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void _showAboutDialog(BuildContext context) {
     showAboutDialog(
       context: context,
-      applicationName: 'SmartBudget',
+      applicationName: 'Expense Tracker',
       applicationVersion: '1.0.0',
       applicationIcon: const Icon(Icons.account_balance_wallet, size: 48),
       children: [
@@ -461,11 +461,7 @@ class _SettingsPageState extends State<SettingsPage> {
           'A personal daily expense tracker with modern dashboard, '
           'category-wise analysis, and budget management features.',
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'Built with Flutter, Hive, and FL Chart.',
-          style: TextStyle(fontStyle: FontStyle.italic),
-        ),
+        const SizedBox(height: 8),
       ],
     );
   }
