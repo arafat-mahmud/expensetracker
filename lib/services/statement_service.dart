@@ -177,7 +177,7 @@ class StatementService {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(
-                'SMART BUDGET',
+                'Expense Tracker',
                 style: pw.TextStyle(
                   fontSize: 24,
                   fontWeight: pw.FontWeight.bold,

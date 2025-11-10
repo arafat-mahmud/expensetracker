@@ -198,7 +198,7 @@ class _StatementPageState extends State<StatementPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'SMART BUDGET',
+                              'Expense Tracker',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,

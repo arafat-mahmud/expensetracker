@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/expense_provider.dart';
 import '../providers/budget_provider.dart';
 import '../models/expense_model.dart';
@@ -38,7 +39,16 @@ class _DashboardPageState extends State<DashboardPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Smart Budget'),
+        title: Text(
+          'Expense Tracker',
+          style: GoogleFonts.rubik80sFade(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : Colors.black,
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.event_note_rounded),
@@ -385,8 +395,12 @@ class _DashboardPageState extends State<DashboardPage> {
     double remainingBudget,
     bool isOverBudget,
   ) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Card(
-      color: isOverBudget ? Colors.red.shade50 : Colors.green.shade50,
+      color: isOverBudget
+          ? (isDarkMode ? Colors.red.shade900 : Colors.red.shade50)
+          : (isDarkMode ? Colors.green.shade900 : Colors.green.shade50),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -399,12 +413,14 @@ class _DashboardPageState extends State<DashboardPage> {
                   'Monthly Budget',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: isDarkMode ? Colors.white : Colors.black,
                       ),
                 ),
                 Text(
                   '${monthlyBudget.toStringAsFixed(0)}',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: isDarkMode ? Colors.white : Colors.black,
                       ),
                 ),
               ],
@@ -412,7 +428,8 @@ class _DashboardPageState extends State<DashboardPage> {
             const SizedBox(height: 12),
             LinearProgressIndicator(
               value: budgetUsed,
-              backgroundColor: Colors.grey.shade300,
+              backgroundColor:
+                  isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
               color: isOverBudget ? Colors.red : Colors.green,
               minHeight: 10,
               borderRadius: BorderRadius.circular(5),
@@ -426,13 +443,17 @@ class _DashboardPageState extends State<DashboardPage> {
                   children: [
                     Text(
                       'Spent',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isDarkMode ? Colors.white : Colors.black87,
+                          ),
                     ),
                     Text(
                       '${totalExpense.toStringAsFixed(2)}',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: isOverBudget ? Colors.red : Colors.green,
+                            color: isDarkMode
+                                ? Colors.white
+                                : (isOverBudget ? Colors.red : Colors.green),
                           ),
                     ),
                   ],
@@ -442,13 +463,17 @@ class _DashboardPageState extends State<DashboardPage> {
                   children: [
                     Text(
                       isOverBudget ? 'Over Budget' : 'Remaining',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isDarkMode ? Colors.white : Colors.black87,
+                          ),
                     ),
                     Text(
                       '${remainingBudget.toStringAsFixed(2)}',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: isOverBudget ? Colors.red : Colors.green,
+                            color: isDarkMode
+                                ? Colors.white
+                                : (isOverBudget ? Colors.red : Colors.green),
                           ),
                     ),
                   ],

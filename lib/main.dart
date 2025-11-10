@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'services/hive_service.dart';
 import 'providers/expense_provider.dart';
 import 'providers/theme_provider.dart';
@@ -41,10 +42,38 @@ class SmartBudgetApp extends StatelessWidget {
           return Consumer<AuthProvider>(
             builder: (context, authProvider, child) {
               return MaterialApp(
-                title: 'Smart Budget',
+                title: 'Expense Tracker',
                 debugShowCheckedModeBanner: false,
-                theme: themeProvider.lightTheme,
-                darkTheme: themeProvider.darkTheme,
+                theme: themeProvider.lightTheme.copyWith(
+                  textTheme: themeProvider.lightTheme.textTheme.copyWith(
+                    titleLarge: GoogleFonts.rubik80sFade(
+                      textStyle: themeProvider.lightTheme.textTheme.titleLarge,
+                    ),
+                  ),
+                  appBarTheme: themeProvider.lightTheme.appBarTheme.copyWith(
+                    titleTextStyle: GoogleFonts.rubik80sFade(
+                      textStyle:
+                          themeProvider.lightTheme.appBarTheme.titleTextStyle ??
+                              const TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                darkTheme: themeProvider.darkTheme.copyWith(
+                  textTheme: themeProvider.darkTheme.textTheme.copyWith(
+                    titleLarge: GoogleFonts.rubik80sFade(
+                      textStyle: themeProvider.darkTheme.textTheme.titleLarge,
+                    ),
+                  ),
+                  appBarTheme: themeProvider.darkTheme.appBarTheme.copyWith(
+                    titleTextStyle: GoogleFonts.rubik80sFade(
+                      textStyle:
+                          themeProvider.darkTheme.appBarTheme.titleTextStyle ??
+                              const TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
                 themeMode:
                     themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
                 home: authProvider.isAuthenticated

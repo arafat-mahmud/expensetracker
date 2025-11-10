@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/expense_model.dart';
 import '../providers/expense_provider.dart';
 import '../widgets/expense_card.dart';
@@ -37,7 +38,16 @@ class _HistoryPageState extends State<HistoryPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Transaction History'),
+        title: Text(
+          'Transaction History',
+          style: GoogleFonts.rubik80sFade(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : Colors.black,
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.download),
