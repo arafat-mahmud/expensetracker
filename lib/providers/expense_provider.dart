@@ -210,6 +210,37 @@ class ExpenseProvider with ChangeNotifier {
     return dailyExpense;
   }
 
+  // Get daily expenses for the last N days
+  Map<int, double> getDailyExpenseForLastNDays(int days) {
+    final today =
+        DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final startDate = today.subtract(Duration(days: days - 1));
+    final Map<int, double> dailyExpense = {};
+
+    for (int i = 0; i < days; i++) {
+      dailyExpense[i + 1] = 0.0;
+    }
+
+    final recentExpenses = _expenses.where((expense) {
+      final expenseDate =
+          DateTime(expense.date.year, expense.date.month, expense.date.day);
+      return expense.isDebit &&
+          (expenseDate.isAtSameMomentAs(startDate) ||
+              expenseDate.isAfter(startDate)) &&
+          (expenseDate.isAtSameMomentAs(today) || expenseDate.isBefore(today));
+    });
+
+    for (var expense in recentExpenses) {
+      final expenseDate =
+          DateTime(expense.date.year, expense.date.month, expense.date.day);
+      final dayIndex = expenseDate.difference(startDate).inDays + 1;
+      if (dayIndex > 0 && dayIndex <= days) {
+        dailyExpense[dayIndex] = (dailyExpense[dayIndex] ?? 0) + expense.amount;
+      }
+    }
+    return dailyExpense;
+  }
+
   // Get expenses by category
   List<Expense> getExpensesByCategory(String category) {
     return _expenses.where((expense) => expense.category == category).toList();

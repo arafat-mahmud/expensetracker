@@ -3,12 +3,12 @@ import 'package:fl_chart/fl_chart.dart';
 
 class DailyBarChart extends StatelessWidget {
   final Map<int, double> dailyExpense;
-  final int daysInMonth;
+  final int days;
 
   const DailyBarChart({
     super.key,
     required this.dailyExpense,
-    required this.daysInMonth,
+    required this.days,
   });
 
   @override
@@ -22,11 +22,23 @@ class DailyBarChart extends StatelessWidget {
     final maxY = dailyExpense.values
         .fold(0.0, (max, value) => value > max ? value : max);
 
+    // Calculate average expense (only for days with expenses)
+    final totalExpense =
+        dailyExpense.values.fold(0.0, (sum, value) => sum + value);
+    final daysWithExpenses = dailyExpense.values.where((v) => v > 0).length;
+    final averageExpense =
+        daysWithExpenses > 0 ? totalExpense / daysWithExpenses : 0.0;
+
+    // Calculate proper max Y with some padding
+    final scaledMaxY = maxY > 0 ? (maxY * 1.4).toDouble() : 100.0;
+
     return BarChart(
       BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: maxY * 1.2,
+        alignment: BarChartAlignment.spaceEvenly,
+        maxY: scaledMaxY,
+        minY: 0,
         barTouchData: BarTouchData(
+          enabled: true,
           touchTooltipData: BarTouchTooltipData(
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               return BarTooltipItem(
@@ -34,6 +46,7 @@ class DailyBarChart extends StatelessWidget {
                 const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
+                  fontSize: 12,
                 ),
               );
             },
@@ -44,27 +57,65 @@ class DailyBarChart extends StatelessWidget {
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
+              reservedSize: 32,
               getTitlesWidget: (value, meta) {
-                if (value.toInt() % 5 == 0 || value.toInt() == 1) {
-                  return Text(
-                    value.toInt().toString(),
-                    style: const TextStyle(fontSize: 10),
+                if (days <= 7) {
+                  final today = DateTime.now();
+                  final day = today.subtract(Duration(days: 7 - value.toInt()));
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      '${day.day}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   );
+                } else {
+                  if (value.toInt() % 5 == 0 || value.toInt() == 1) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        value.toInt().toString(),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }
                 }
                 return const Text('');
               },
-              reservedSize: 30,
             ),
           ),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 40,
+              reservedSize: 50,
               getTitlesWidget: (value, meta) {
-                if (value == 0) return const Text('');
-                return Text(
-                  '${(value / 1000).toStringAsFixed(0)}k',
-                  style: const TextStyle(fontSize: 10),
+                if (value >= 1000) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: Text(
+                      '${(value / 1000).toStringAsFixed(0)}k',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: Text(
+                    value.toInt().toString(),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 );
               },
             ),
@@ -77,28 +128,63 @@ class DailyBarChart extends StatelessWidget {
           ),
         ),
         borderData: FlBorderData(show: false),
-        gridData: const FlGridData(show: false),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: scaledMaxY / 5,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: Colors.grey.withOpacity(0.2),
+              strokeWidth: 1,
+            );
+          },
+        ),
+        extraLinesData: ExtraLinesData(
+          horizontalLines: [
+            HorizontalLine(
+              y: averageExpense,
+              color: const Color.fromARGB(255, 123, 118, 109),
+              strokeWidth: 2,
+              dashArray: [5, 5],
+              label: HorizontalLineLabel(
+                show: true,
+                alignment: Alignment.topRight,
+                padding: const EdgeInsets.only(right: 5, bottom: 5),
+                style: const TextStyle(
+                  color: Color.fromARGB(255, 222, 89, 65),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                ),
+                labelResolver: (line) =>
+                    'Avg: ${averageExpense.toStringAsFixed(0)}',
+              ),
+            ),
+          ],
+        ),
         barGroups: _generateBarGroups(),
       ),
     );
   }
 
   List<BarChartGroupData> _generateBarGroups() {
-    return dailyExpense.entries.map((entry) {
+    return List.generate(days, (index) {
+      final day = index + 1;
+      final value = dailyExpense[day] ?? 0.0;
       return BarChartGroupData(
-        x: entry.key,
+        x: day,
         barRods: [
           BarChartRodData(
-            toY: entry.value,
-            color: Colors.blue,
-            width: 8,
+            toY: value,
+            fromY: 0,
+            color: value > 0 ? Colors.blue : Colors.transparent,
+            width: 12,
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(4),
-              topRight: Radius.circular(4),
+              topLeft: Radius.circular(6),
+              topRight: Radius.circular(6),
             ),
           ),
         ],
       );
-    }).toList();
+    });
   }
 }

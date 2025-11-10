@@ -8,6 +8,7 @@ import '../widgets/daily_bar_chart.dart';
 import 'add_expense_page.dart';
 import 'add_income_page.dart';
 import 'category_report_page.dart';
+import 'daily_expense_trend_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -30,8 +31,6 @@ class _DashboardPageState extends State<DashboardPage> {
     final categoryExpense =
         expenseProvider.getCategoryExpenseForMonth(selectedMonth);
     final dailyExpense = expenseProvider.getDailyExpenseForMonth(selectedMonth);
-    final daysInMonth =
-        DateTime(selectedMonth.year, selectedMonth.month + 1, 0).day;
 
     final budgetUsed = budgetProvider.getBudgetUsedPercentage(totalExpense);
     final remainingBudget = budgetProvider.getRemainingBudget(totalExpense);
@@ -118,20 +117,40 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Daily Expense Trend',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Daily Expense Trend',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const DailyExpenseTrendPage(),
+                              ),
+                            );
+                          },
+                          child: const Text('View'),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
                       height: 200,
                       child: dailyExpense.isEmpty
-                          ? const Center(child: Text('No expenses this month'))
+                          ? const Center(
+                              child: Text('No expenses in the last 7 days'))
                           : DailyBarChart(
-                              dailyExpense: dailyExpense,
-                              daysInMonth: daysInMonth,
+                              dailyExpense: expenseProvider
+                                  .getDailyExpenseForLastNDays(7),
+                              days: 7,
                             ),
                     ),
                   ],
