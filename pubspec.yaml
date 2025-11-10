@@ -59,6 +59,21 @@ dev_dependencies:
   # Hive Code Generation
   hive_generator: ^2.0.1
   build_runner: ^2.4.8
+  
+  # App Icon Generator
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
+  
+  # Assets
+  assets:
+    - assets/expensetracker.png
+
+# App Icon Configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/expensetracker.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/expensetracker.png"
