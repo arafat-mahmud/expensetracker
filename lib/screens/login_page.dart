@@ -36,10 +36,20 @@ class LoginPage extends StatelessWidget {
                       color: Theme.of(context).colorScheme.primaryContainer,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      Icons.account_balance_wallet,
-                      size: 60,
-                      color: Theme.of(context).colorScheme.primary,
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/loginicon.png',
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.account_balance_wallet,
+                            size: 60,
+                            color: Theme.of(context).colorScheme.primary,
+                          );
+                        },
+                      ),
                     ),
                   ),
                   const SizedBox(height: 32),

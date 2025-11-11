@@ -11,7 +11,6 @@ import 'add_expense_page.dart';
 import 'add_income_page.dart';
 import 'category_report_page.dart';
 import 'daily_expense_trend_page.dart';
-import '../main.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});

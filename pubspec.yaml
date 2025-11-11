@@ -73,6 +73,7 @@ flutter:
   # Assets
   assets:
     - assets/expensetracker.png
+    - assets/loginicon.png
 
 # App Icon Configuration
 flutter_launcher_icons:
