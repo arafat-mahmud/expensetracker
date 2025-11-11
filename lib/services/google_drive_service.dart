@@ -18,29 +18,34 @@ class GoogleDriveService {
       GoogleSignInAccount? account =
           await _authService.getGoogleSignInAccount();
 
-      // If no account, try to get current user from GoogleSignIn instance
-      if (account == null) {
-        account = _authService.googleSignInInstance.currentUser;
-      }
-
-      // If still no account, request sign-in with Drive scopes
+      // If no account, request sign-in with Drive scopes
       if (account == null) {
         print(
             'No existing Google account, requesting sign-in with Drive scopes...');
-        account = await _authService.googleSignInInstance.signIn();
-      }
-
-      if (account == null) {
-        print('User cancelled Google Sign In or sign-in failed');
-        return null;
+        account = await _authService.googleSignInInstance.authenticate(
+          scopeHint: [
+            'email',
+            'https://www.googleapis.com/auth/drive.file',
+            'https://www.googleapis.com/auth/drive.appdata',
+          ],
+        );
       }
 
       print('Using Google account: ${account.email}');
 
-      // Get auth headers for Drive API
-      final authHeaders = await account.authHeaders;
-      print('Got auth headers, creating Drive API client...');
+      // Get authorization headers for Drive API
+      final authHeaders =
+          await account.authorizationClient.authorizationHeaders([
+        'https://www.googleapis.com/auth/drive.file',
+        'https://www.googleapis.com/auth/drive.appdata',
+      ], promptIfNecessary: true);
 
+      if (authHeaders == null) {
+        print('Failed to get authorization headers');
+        return null;
+      }
+
+      print('Got authorization headers, creating Drive API client...');
       final authenticateClient = GoogleAuthClient(authHeaders);
       final driveApi = drive.DriveApi(authenticateClient);
 

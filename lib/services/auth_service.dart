@@ -3,13 +3,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: [
-      'email',
-      'https://www.googleapis.com/auth/drive.file',
-      'https://www.googleapis.com/auth/drive.appdata',
-    ],
-  );
+
+  // Use the singleton instance
+  GoogleSignIn get _googleSignIn => GoogleSignIn.instance;
 
   // Get current user
   User? get currentUser => _auth.currentUser;
@@ -20,21 +16,23 @@ class AuthService {
   // Sign in with Google
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // Trigger the authentication flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      // Initialize with scopes
+      await _googleSignIn.initialize();
 
-      if (googleUser == null) {
-        // User canceled the sign-in
-        return null;
-      }
+      // Trigger the authentication flow
+      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate(
+        scopeHint: [
+          'email',
+          'https://www.googleapis.com/auth/drive.file',
+          'https://www.googleapis.com/auth/drive.appdata',
+        ],
+      );
 
       // Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
       // Create a new credential
       final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
@@ -48,12 +46,25 @@ class AuthService {
 
   // Get Google Sign In account for Drive API
   Future<GoogleSignInAccount?> getGoogleSignInAccount() async {
-    GoogleSignInAccount? account = await _googleSignIn.signInSilently();
-    if (account == null) {
-      // Try to get current signed in user
-      account = _googleSignIn.currentUser;
+    try {
+      // Try lightweight authentication first
+      GoogleSignInAccount? account =
+          await _googleSignIn.attemptLightweightAuthentication();
+
+      // If no account, try full authentication
+      account ??= await _googleSignIn.authenticate(
+        scopeHint: [
+          'email',
+          'https://www.googleapis.com/auth/drive.file',
+          'https://www.googleapis.com/auth/drive.appdata',
+        ],
+      );
+
+      return account;
+    } catch (e) {
+      print('Error getting Google Sign In account: $e');
+      return null;
     }
-    return account;
   }
 
   // Get GoogleSignIn instance (for Drive service)
