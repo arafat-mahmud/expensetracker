@@ -10,6 +10,7 @@ import 'add_expense_page.dart';
 import 'add_income_page.dart';
 import 'category_report_page.dart';
 import 'daily_expense_trend_page.dart';
+import '../main.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -20,6 +21,36 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   DateTime selectedMonth = DateTime.now();
+  bool _isRestoringInBackground = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Trigger background restore after the widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _performBackgroundRestore();
+    });
+  }
+
+  Future<void> _performBackgroundRestore() async {
+    final expenseProvider =
+        Provider.of<ExpenseProvider>(context, listen: false);
+
+    // Only show loading indicator if there are no expenses (likely first time user)
+    if (expenseProvider.expenses.isEmpty) {
+      setState(() {
+        _isRestoringInBackground = true;
+      });
+    }
+
+    await BackgroundRestoreHandler.performAutoRestore(context);
+
+    if (mounted) {
+      setState(() {
+        _isRestoringInBackground = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +81,21 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
         actions: [
+          // Show subtle loading indicator during background restore
+          if (_isRestoringInBackground)
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              child: const Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                  ),
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.event_note_rounded),
             onPressed: () {
