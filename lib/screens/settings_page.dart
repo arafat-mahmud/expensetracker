@@ -6,6 +6,7 @@ import '../providers/theme_provider.dart';
 import '../providers/budget_provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/auth_provider.dart';
+import 'developer_info_screen.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -189,11 +190,17 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 const Divider(),
                 ListTile(
-                  leading: const Icon(Icons.code),
-                  title: const Text('About Expense Tracker'),
-                  subtitle: const Text('A personal daily expense tracker'),
+                  leading: const Icon(Icons.person),
+                  title: const Text('About the Developer'),
+                  subtitle: const Text('Developer information and contact'),
+                  trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    _showAboutDialog(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DeveloperInfoScreen(),
+                      ),
+                    );
                   },
                 ),
               ],
@@ -448,22 +455,6 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
-    );
-  }
-
-  void _showAboutDialog(BuildContext context) {
-    showAboutDialog(
-      context: context,
-      applicationName: 'Expense Tracker',
-      applicationVersion: '1.0.0',
-      applicationIcon: const Icon(Icons.account_balance_wallet, size: 48),
-      children: [
-        const Text(
-          'A personal daily expense tracker with modern dashboard, '
-          'category-wise analysis, and budget management features.',
-        ),
-        const SizedBox(height: 8),
-      ],
     );
   }
 
