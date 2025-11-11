@@ -1,15 +1,13 @@
 import 'package:flutter/foundation.dart';
 import '../models/expense_model.dart';
 import '../services/hive_service.dart';
-import '../services/firestore_service.dart';
 import '../services/google_drive_service.dart';
 
 class ExpenseProvider with ChangeNotifier {
   List<Expense> _expenses = [];
   DateTime _selectedMonth = DateTime.now();
-  bool _autoSync = true; // Auto-sync to cloud
+  bool _autoSync = true; // Auto-backup to Google Drive
   DateTime? _lastBackupTime; // Track last backup time
-  final FirestoreService _firestoreService = FirestoreService();
   final GoogleDriveService _driveService = GoogleDriveService();
 
   List<Expense> get expenses => _expenses;
@@ -62,16 +60,8 @@ class ExpenseProvider with ChangeNotifier {
     _expenses.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
 
-    // Auto-sync to cloud if enabled (in background)
+    // Auto-backup to Google Drive if enabled (in background)
     if (_autoSync) {
-      try {
-        await _firestoreService.syncExpense(expense);
-        print('Synced to Firestore');
-      } catch (e) {
-        print('Failed to sync to Firestore: $e');
-      }
-
-      // Auto-backup to Google Drive
       try {
         print('Attempting Google Drive backup...');
         final success = await _driveService.backupExpenses(_expenses);
@@ -97,16 +87,8 @@ class ExpenseProvider with ChangeNotifier {
     _expenses.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
 
-    // Auto-sync to cloud if enabled (in background)
+    // Auto-backup to Google Drive if enabled (in background)
     if (_autoSync) {
-      try {
-        await _firestoreService.syncExpense(expense);
-        print('Synced to Firestore');
-      } catch (e) {
-        print('Failed to sync to Firestore: $e');
-      }
-
-      // Auto-backup to Google Drive
       try {
         print('Attempting Google Drive backup after update...');
         final success = await _driveService.backupExpenses(_expenses);
@@ -132,15 +114,8 @@ class ExpenseProvider with ChangeNotifier {
     _expenses.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
 
-    // Auto-sync to cloud if enabled (in background)
+    // Auto-backup to Google Drive if enabled (in background)
     if (_autoSync) {
-      try {
-        await _firestoreService.deleteExpense(id);
-      } catch (e) {
-        print('Failed to delete from Firestore: $e');
-      }
-
-      // Auto-backup to Google Drive
       try {
         final success = await _driveService.backupExpenses(_expenses);
         if (success) {
@@ -299,19 +274,9 @@ class ExpenseProvider with ChangeNotifier {
         .toList();
   }
 
-  // Clear all expenses
+  // Clear all expenses (local only - keeps Google Drive backups intact)
   Future<void> clearAllExpenses() async {
     await HiveService.clearAllData();
-
-    // Also clear from cloud if auto-sync enabled
-    if (_autoSync) {
-      try {
-        await _firestoreService.clearAllData();
-      } catch (e) {
-        print('Failed to clear Firestore data: $e');
-      }
-    }
-
     loadExpenses();
   }
 
@@ -325,39 +290,24 @@ class ExpenseProvider with ChangeNotifier {
       await HiveService.clearAllData();
       print('✅ Local data cleared (${stopwatch.elapsedMilliseconds}ms)');
 
-      // Step 2: Run cloud operations in parallel with timeout
-      await Future.wait([
-        // Firestore deletion with 2-second timeout
-        _firestoreService.clearAllData().timeout(
-          const Duration(seconds: 2),
-          onTimeout: () {
-            print('⚠️ Firestore deletion timed out - continuing in background');
-            // Continue deletion in background
-            _firestoreService.clearAllData().catchError((e) {
-              print('Background Firestore deletion failed: $e');
-              return null;
-            });
-            return null;
-          },
-        ),
-        // Google Drive deletion with 2-second timeout
-        _driveService.deleteAllBackupFiles().timeout(
-          const Duration(seconds: 2),
-          onTimeout: () {
-            print(
-                '⚠️ Google Drive deletion timed out - continuing in background');
-            // Continue deletion in background
-            _driveService.deleteAllBackupFiles().catchError((e) {
-              print('Background Google Drive deletion failed: $e');
-              return false;
-            });
+      // Step 2: Delete Google Drive backups with timeout
+      final driveDeleteSuccess =
+          await _driveService.deleteAllBackupFiles().timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {
+          print(
+              '⚠️ Google Drive deletion timed out - continuing in background');
+          // Continue deletion in background
+          _driveService.deleteAllBackupFiles().catchError((e) {
+            print('Background Google Drive deletion failed: $e');
             return false;
-          },
-        ),
-      ].map((future) => future.catchError((e) {
-            print('Cloud operation error: $e');
-            return null; // Return null for failed operations
-          })));
+          });
+          return false;
+        },
+      ).catchError((e) {
+        print('Google Drive deletion error: $e');
+        return false;
+      });
 
       print(
           '✅ Cloud operations completed (${stopwatch.elapsedMilliseconds}ms)');
@@ -367,11 +317,17 @@ class ExpenseProvider with ChangeNotifier {
       loadExpenses(); // This will show empty list immediately
 
       stopwatch.stop();
-      print(
-          '✅ FAST permanent deletion completed in ${stopwatch.elapsedMilliseconds}ms');
 
-      // Return true if local data was cleared (most important part)
-      return true;
+      if (driveDeleteSuccess) {
+        print(
+            '✅ PERMANENT deletion completed successfully in ${stopwatch.elapsedMilliseconds}ms - NO RECOVERY POSSIBLE');
+      } else {
+        print(
+            '⚠️ PARTIAL deletion completed in ${stopwatch.elapsedMilliseconds}ms - Google Drive backups may still exist');
+      }
+
+      // Return true only if BOTH local AND Google Drive deletion succeeded
+      return driveDeleteSuccess;
     } catch (e) {
       print('❌ Error during FAST permanent deletion: $e');
       return false;
@@ -384,16 +340,7 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Manual sync all to Firestore
-  Future<bool> syncToFirestore() async {
-    try {
-      await _firestoreService.syncAllExpenses(_expenses);
-      return true;
-    } catch (e) {
-      print('Failed to sync to Firestore: $e');
-      return false;
-    }
-  }
+  // Note: Firestore is only used for authentication, not for expense data storage
 
   // Manual backup to Google Drive
   Future<bool> backupToGoogleDrive() async {

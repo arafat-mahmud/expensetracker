@@ -71,9 +71,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.cloud_sync),
-                    title: const Text('Auto Sync'),
-                    subtitle:
-                        const Text('Automatically sync expenses to cloud'),
+                    title: const Text('Auto Backup'),
+                    subtitle: const Text(
+                        'Automatically backup expenses to Google Drive'),
                     trailing: Switch(
                       value: expenseProvider.autoSync,
                       onChanged: (value) {
@@ -675,97 +675,16 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showFastDeletionDialog(
-      BuildContext context, ExpenseProvider expenseProvider) async {
-    int countdown = 3;
-    bool deletionCompleted = false;
-
-    // Show countdown dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(
-                color: Colors.red,
-                strokeWidth: 3,
-              ),
-              const SizedBox(height: 20),
-              Text(
-                deletionCompleted
-                    ? '✅ Deletion Complete!'
-                    : 'Permanently deleting all data...',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              if (!deletionCompleted)
-                Text(
-                  'Estimated: ${countdown}s remaining',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
-                ),
-            ],
-          ),
+      BuildContext context, ExpenseProvider expenseProvider) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierDismissible: false,
+        pageBuilder: (context, _, __) => _DeletionProgressDialog(
+          expenseProvider: expenseProvider,
         ),
       ),
     );
-
-    // Start countdown timer
-    for (int i = 3; i > 0; i--) {
-      await Future.delayed(const Duration(seconds: 1));
-      if (context.mounted) {
-        // Find the dialog and update it
-        countdown = i - 1;
-        // The StatefulBuilder will rebuild automatically
-      }
-    }
-
-    // Perform permanent deletion
-    final stopwatch = Stopwatch()..start();
-    final success = await expenseProvider.permanentlyDeleteAllData();
-    stopwatch.stop();
-
-    if (context.mounted) {
-      // Update dialog to show completion
-      deletionCompleted = true;
-
-      // Auto-close after showing completion
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      if (context.mounted) {
-        Navigator.pop(context); // Close loading dialog
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(
-                  success ? Icons.check_circle : Icons.error,
-                  color: Colors.white,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  success
-                      ? 'All data permanently deleted in ${stopwatch.elapsedMilliseconds}ms'
-                      : 'Deletion failed - please try again',
-                ),
-              ],
-            ),
-            backgroundColor: success ? Colors.red : Colors.orange,
-            duration: const Duration(seconds: 4),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
   }
 
   Widget _buildBottomNavBar(BuildContext context) {
@@ -793,6 +712,180 @@ class _SettingsPageState extends State<SettingsPage> {
           label: 'Settings',
         ),
       ],
+    );
+  }
+}
+
+class _DeletionProgressDialog extends StatefulWidget {
+  final ExpenseProvider expenseProvider;
+
+  const _DeletionProgressDialog({
+    required this.expenseProvider,
+  });
+
+  @override
+  State<_DeletionProgressDialog> createState() =>
+      _DeletionProgressDialogState();
+}
+
+class _DeletionProgressDialogState extends State<_DeletionProgressDialog>
+    with TickerProviderStateMixin {
+  int countdown = 3;
+  bool deletionCompleted = false;
+  bool deletionStarted = false;
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    )..repeat();
+    _startDeletionProcess();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _startDeletionProcess() async {
+    // Countdown phase
+    for (int i = 3; i > 0; i--) {
+      if (!mounted) return;
+      await Future.delayed(const Duration(seconds: 1));
+      if (mounted) {
+        setState(() {
+          countdown = i - 1;
+        });
+      }
+    }
+
+    // Start deletion
+    if (!mounted) return;
+    setState(() {
+      deletionStarted = true;
+    });
+
+    // Perform permanent deletion
+    final stopwatch = Stopwatch()..start();
+    final success = await widget.expenseProvider.permanentlyDeleteAllData();
+    stopwatch.stop();
+
+    if (!mounted) return;
+
+    // Show completion
+    setState(() {
+      deletionCompleted = true;
+    });
+
+    _animationController.stop();
+
+    // Auto-close after showing completion
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    if (mounted) {
+      Navigator.of(context).pop(); // Close dialog
+
+      // Show final result
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                success ? Icons.check_circle : Icons.warning,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  success
+                      ? 'All data permanently deleted! No recovery possible.'
+                      : 'Local data deleted but Google Drive backups may still exist. Try again or check your internet connection.',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: success ? Colors.red : Colors.orange,
+          duration: const Duration(seconds: 6),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      type: MaterialType.transparency,
+      child: Container(
+        color: Colors.black54,
+        child: Center(
+          child: Card(
+            margin: const EdgeInsets.all(24),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!deletionCompleted)
+                    AnimatedBuilder(
+                      animation: _animationController,
+                      builder: (context, child) {
+                        return Transform.rotate(
+                          angle: _animationController.value * 2.0 * 3.14159,
+                          child: const Icon(
+                            Icons.delete_forever,
+                            color: Colors.red,
+                            size: 48,
+                          ),
+                        );
+                      },
+                    )
+                  else
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 48,
+                    ),
+                  const SizedBox(height: 20),
+                  Text(
+                    deletionCompleted
+                        ? '✅ Deletion Complete!'
+                        : deletionStarted
+                            ? 'Permanently deleting all data...'
+                            : 'Preparing to delete all data...',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  if (!deletionCompleted && !deletionStarted)
+                    Text(
+                      'Starting in ${countdown}s',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  if (deletionStarted && !deletionCompleted)
+                    const Text(
+                      'Please wait...',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

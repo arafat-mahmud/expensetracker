@@ -256,7 +256,7 @@ class GoogleDriveService {
 
       print('Getting app folder... (${stopwatch.elapsedMilliseconds}ms)');
       final folderId = await _getOrCreateAppFolder(driveApi)
-          .timeout(const Duration(milliseconds: 500));
+          .timeout(const Duration(seconds: 3));
       if (folderId == null) {
         print('Failed to get app folder (${stopwatch.elapsedMilliseconds}ms)');
         return false;
@@ -270,7 +270,7 @@ class GoogleDriveService {
             spaces: 'drive',
             $fields: 'files(id, name)',
           )
-          .timeout(const Duration(milliseconds: 500));
+          .timeout(const Duration(seconds: 2));
 
       if (fileList.files == null || fileList.files!.isEmpty) {
         print(
@@ -287,7 +287,7 @@ class GoogleDriveService {
           print('Deleting file: ${file.name} (ID: ${file.id})');
           await driveApi.files
               .delete(file.id!)
-              .timeout(const Duration(milliseconds: 300));
+              .timeout(const Duration(seconds: 2));
           print('✅ Deleted file: ${file.name}');
           return true;
         } catch (e) {
@@ -301,7 +301,7 @@ class GoogleDriveService {
         deletionFutures,
         eagerError: false,
       ).timeout(
-        const Duration(seconds: 1),
+        const Duration(seconds: 5),
         onTimeout: () {
           print('⚠️ Some deletions timed out - continuing in background');
           return fileList.files!.map((e) => false).toList();
