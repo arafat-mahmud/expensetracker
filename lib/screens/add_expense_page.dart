@@ -122,12 +122,12 @@ class _AddExpensePageState extends State<AddExpensePage> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
-        foregroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Colors.red,
         title: Text(
           isEditing ? 'Edit Expense' : 'Add Expense',
-          style: TextStyle(
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
-            color: Theme.of(context).primaryColor,
+            color: Colors.red,
           ),
         ),
         centerTitle: true,
@@ -282,14 +282,14 @@ class _AddExpensePageState extends State<AddExpensePage> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Save Button with Gradient
+                    // Save Button with Gradient (Red theme)
                     Container(
                       height: 56,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Theme.of(context).primaryColor,
-                            Theme.of(context).primaryColor.withOpacity(0.8),
+                            Colors.red,
+                            Colors.red.withOpacity(0.8),
                           ],
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
@@ -297,8 +297,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color:
-                                Theme.of(context).primaryColor.withOpacity(0.4),
+                            color: Colors.red.withOpacity(0.4),
                             blurRadius: 15,
                             offset: const Offset(0, 8),
                           ),
