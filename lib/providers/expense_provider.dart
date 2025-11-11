@@ -357,21 +357,27 @@ class ExpenseProvider with ChangeNotifier {
     }
   }
 
-  // Restore from Google Drive
+  // Restore from Google Drive (automatic restore after sign-in)
   Future<bool> restoreFromGoogleDrive() async {
     try {
       final expenses = await _driveService.restoreExpenses();
       if (expenses != null && expenses.isNotEmpty) {
-        // Save to Hive
+        // Clear existing local data first
+        await HiveService.clearAllData();
+
+        // Save restored data to Hive
         for (var expense in expenses) {
           await HiveService.addExpense(expense);
         }
         loadExpenses();
+        print(
+            '✅ Automatic restore successful: ${expenses.length} expenses restored');
         return true;
       }
+      print('ℹ️ No backup data found to restore');
       return false;
     } catch (e) {
-      print('Failed to restore from Google Drive: $e');
+      print('❌ Failed to restore from Google Drive: $e');
       return false;
     }
   }

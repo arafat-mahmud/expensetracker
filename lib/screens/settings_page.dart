@@ -106,15 +106,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _backupToGoogleDrive(context, expenseProvider),
                   ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.cloud_download),
-                    title: const Text('Restore from Google Drive'),
-                    subtitle: const Text('Restore data from backup'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () =>
-                        _restoreFromGoogleDrive(context, expenseProvider),
-                  ),
                 ],
               ),
             ),
@@ -314,79 +305,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 success
                     ? 'Backup completed successfully!'
                     : 'Backup failed. Try again.',
-              ),
-            ],
-          ),
-          backgroundColor: success ? Colors.green : Colors.red,
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  Future<void> _restoreFromGoogleDrive(
-      BuildContext context, ExpenseProvider expenseProvider) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Restore from Google Drive'),
-        content: const Text(
-          'This will replace all local expenses with data from Google Drive backup. Continue?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Restore'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true || !context.mounted) return;
-
-    // Show instant feedback
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(width: 12),
-            Text('Restoring from Google Drive...'),
-          ],
-        ),
-        duration: Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-
-    final success = await expenseProvider.restoreFromGoogleDrive();
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                success ? Icons.check_circle : Icons.error,
-                color: Colors.white,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                success
-                    ? 'Data restored successfully!'
-                    : 'Restore failed. Try again.',
               ),
             ],
           ),
