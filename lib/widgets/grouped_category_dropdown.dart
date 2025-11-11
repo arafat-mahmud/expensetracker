@@ -90,55 +90,6 @@ class GroupedCategoryDropdown extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  // Header with gradient background
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.all(20),
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Theme.of(context).primaryColor,
-                          Theme.of(context).primaryColor.withOpacity(0.8),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(context).primaryColor.withOpacity(0.3),
-                          blurRadius: 15,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.category_rounded,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Choose Category Group',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Select a category group to explore specific options',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withOpacity(0.9),
-                              ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
                   // Group list with professional cards
                   Expanded(
                     child: ListView.builder(
@@ -147,15 +98,21 @@ class GroupedCategoryDropdown extends StatelessWidget {
                       itemCount: ExpenseCategory.groupHeaders.length,
                       itemBuilder: (context, index) {
                         final groupHeader = ExpenseCategory.groupHeaders[index];
-                        final categories = ExpenseCategory.getCategoriesForGroup(groupHeader);
-                        
+                        final categories =
+                            ExpenseCategory.getCategoriesForGroup(groupHeader);
+
                         // Get a color for each group
                         final colors = [
-                          const Color(0xFF6C63FF), const Color(0xFF4ECDC4), 
-                          const Color(0xFFFF6B6B), const Color(0xFF4DABF7),
-                          const Color(0xFF69DB7C), const Color(0xFFFFD43B),
-                          const Color(0xFFFF8CC8), const Color(0xFF74C0FC),
-                          const Color(0xFFFFA8A8), const Color(0xFFD0BFFF),
+                          const Color(0xFF6C63FF),
+                          const Color(0xFF4ECDC4),
+                          const Color(0xFFFF6B6B),
+                          const Color(0xFF4DABF7),
+                          const Color(0xFF69DB7C),
+                          const Color(0xFFFFD43B),
+                          const Color(0xFFFF8CC8),
+                          const Color(0xFF74C0FC),
+                          const Color(0xFFFFA8A8),
+                          const Color(0xFFD0BFFF),
                         ];
                         final groupColor = colors[index % colors.length];
 
@@ -211,7 +168,8 @@ class GroupedCategoryDropdown extends StatelessWidget {
                                       ),
                                       child: Center(
                                         child: Text(
-                                          groupHeader.split(' ')[0], // Get emoji part
+                                          groupHeader
+                                              .split(' ')[0], // Get emoji part
                                           style: const TextStyle(fontSize: 28),
                                         ),
                                       ),
@@ -220,10 +178,12 @@ class GroupedCategoryDropdown extends StatelessWidget {
                                     // Text content
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            groupHeader.substring(2), // Remove emoji and space
+                                            groupHeader.substring(
+                                                2), // Remove emoji and space
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .titleMedium
@@ -317,69 +277,26 @@ class GroupedCategoryDropdown extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  // Header with back button and gradient
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.all(20),
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Theme.of(context).primaryColor,
-                          Theme.of(context).primaryColor.withOpacity(0.8),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(context).primaryColor.withOpacity(0.3),
-                          blurRadius: 15,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
+                  // Simple back button
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
                     child: Row(
                       children: [
-                        // Back button
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: IconButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _showCategoryGroupPicker(context);
-                            },
-                            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-                          ),
+                        IconButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showCategoryGroupPicker(context);
+                          },
+                          icon: const Icon(Icons.arrow_back),
+                          tooltip: 'Back to groups',
                         ),
-                        const SizedBox(width: 16),
-                        // Group info
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                groupHeader,
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                    ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Choose from ${categories.length} options',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Colors.white.withOpacity(0.9),
-                                      fontSize: 13,
-                                    ),
-                              ),
-                            ],
-                          ),
+                        Text(
+                          groupHeader,
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                       ],
                     ),
@@ -410,20 +327,26 @@ class GroupedCategoryDropdown extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.all(18),
                                 decoration: BoxDecoration(
-                                  color: isSelected 
-                                      ? Theme.of(context).primaryColor.withOpacity(0.1)
+                                  color: isSelected
+                                      ? Theme.of(context)
+                                          .primaryColor
+                                          .withOpacity(0.1)
                                       : Theme.of(context).cardColor,
                                   borderRadius: BorderRadius.circular(18),
                                   border: Border.all(
-                                    color: isSelected 
-                                        ? Theme.of(context).primaryColor.withOpacity(0.3)
+                                    color: isSelected
+                                        ? Theme.of(context)
+                                            .primaryColor
+                                            .withOpacity(0.3)
                                         : Colors.grey.withOpacity(0.1),
                                     width: isSelected ? 2 : 1,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: isSelected 
-                                          ? Theme.of(context).primaryColor.withOpacity(0.1)
+                                      color: isSelected
+                                          ? Theme.of(context)
+                                              .primaryColor
+                                              .withOpacity(0.1)
                                           : Colors.black.withOpacity(0.04),
                                       blurRadius: isSelected ? 15 : 8,
                                       offset: const Offset(0, 4),
@@ -448,7 +371,8 @@ class GroupedCategoryDropdown extends StatelessWidget {
                                         borderRadius: BorderRadius.circular(16),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: categoryColor.withOpacity(0.3),
+                                            color:
+                                                categoryColor.withOpacity(0.3),
                                             blurRadius: 10,
                                             offset: const Offset(0, 4),
                                           ),
@@ -466,9 +390,17 @@ class GroupedCategoryDropdown extends StatelessWidget {
                                     Expanded(
                                       child: Text(
                                         category,
-                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                              color: isSelected ? Theme.of(context).primaryColor : null,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                              fontWeight: isSelected
+                                                  ? FontWeight.bold
+                                                  : FontWeight.w500,
+                                              color: isSelected
+                                                  ? Theme.of(context)
+                                                      .primaryColor
+                                                  : null,
                                               fontSize: 16,
                                             ),
                                       ),
@@ -479,7 +411,8 @@ class GroupedCategoryDropdown extends StatelessWidget {
                                         padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
                                           color: Theme.of(context).primaryColor,
-                                          borderRadius: BorderRadius.circular(20),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
                                         ),
                                         child: const Icon(
                                           Icons.check_rounded,
@@ -492,7 +425,8 @@ class GroupedCategoryDropdown extends StatelessWidget {
                                         padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
                                           color: categoryColor.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(10),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
                                         ),
                                         child: Icon(
                                           Icons.arrow_forward_ios_rounded,
