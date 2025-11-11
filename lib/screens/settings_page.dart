@@ -430,18 +430,29 @@ class _SettingsPageState extends State<SettingsPage> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.red,
+                          fontSize: 13,
                         ),
                       ),
                       SizedBox(height: 8),
-                      Text('• Delete ALL expenses from your device'),
-                      Text('• Delete ALL backups from Google Drive'),
-                      Text('• Make data recovery IMPOSSIBLE'),
+                      Text(
+                        '• Delete ALL expenses from your device',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      Text(
+                        '• Delete ALL backups from Google Drive',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      Text(
+                        '• Make data recovery IMPOSSIBLE',
+                        style: TextStyle(fontSize: 11),
+                      ),
                       SizedBox(height: 8),
                       Text(
                         'This action is IRREVERSIBLE!',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.red,
+                          fontSize: 13,
                         ),
                       ),
                     ],
