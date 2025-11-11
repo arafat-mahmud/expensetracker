@@ -46,7 +46,7 @@ class LoginPage extends StatelessWidget {
 
                   // App Name
                   Text(
-                    'SmartBudget',
+                    'Expense Tracker',
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary,
@@ -73,7 +73,7 @@ class LoginPage extends StatelessWidget {
                   _buildFeatureItem(
                     context,
                     Icons.cloud_upload,
-                    'Cloud Backup',
+                    'Google Drive Backup',
                   ),
                   const SizedBox(height: 16),
                   _buildFeatureItem(
@@ -134,7 +134,7 @@ class LoginPage extends StatelessWidget {
 
                   // Info Text
                   Text(
-                    'Sign in to save your data securely\nin the cloud and Google Drive',
+                    'Sign in to save your data securely\nin Google Drive',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.grey,

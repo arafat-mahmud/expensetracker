@@ -1,5 +1,5 @@
 name: expensetracker
-description: "SmartBudget - A personal daily expense tracker with modern dashboard."
+description: "Expense Tracker - A personal daily expense tracker with modern dashboard."
 publish_to: 'none'
 
 version: 1.0.0+1

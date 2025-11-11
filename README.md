@@ -1,4 +1,4 @@
-# 💰 SmartBudget - Personal Expense Tracker# expensetracker
+# 💰 Expense Tracker - Personal Expense Tracker# expensetracker
 
 
 

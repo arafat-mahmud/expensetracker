@@ -22,11 +22,11 @@ void main() async {
   // Initialize Hive
   await HiveService.init();
 
-  runApp(const SmartBudgetApp());
+  runApp(const ExpenseTrackerApp());
 }
 
-class SmartBudgetApp extends StatelessWidget {
-  const SmartBudgetApp({super.key});
+class ExpenseTrackerApp extends StatelessWidget {
+  const ExpenseTrackerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
