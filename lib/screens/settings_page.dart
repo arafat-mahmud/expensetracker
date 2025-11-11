@@ -248,7 +248,12 @@ class _SettingsPageState extends State<SettingsPage> {
             onPressed: () async {
               await authProvider.signOut();
               if (context.mounted) {
-                Navigator.pop(context);
+                Navigator.pop(context); // Close the dialog
+                // Navigate to login page by popping all routes
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  '/',
+                  (route) => false,
+                );
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Signed out successfully')),
                 );
