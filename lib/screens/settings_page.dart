@@ -208,10 +208,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 ListTile(
                   leading: const Icon(Icons.delete_sweep, color: Colors.red),
                   title: const Text(
-                    'Clear All Data',
+                    'Delete All Data',
                     style: TextStyle(color: Colors.red),
                   ),
-                  subtitle: const Text('Delete all expenses permanently'),
+                  subtitle: const Text('Permanent deletion all history'),
+                  trailing: const Icon(Icons.chevron_right),
                   onTap: () {
                     _showClearDataDialog(context, expenseProvider);
                   },
@@ -468,50 +469,307 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _showClearDataDialog(
       BuildContext context, ExpenseProvider expenseProvider) {
+    // Directly show permanent deletion confirmation
+    _showPermanentDeleteConfirmation(context, expenseProvider);
+  }
+
+  void _showPermanentDeleteConfirmation(
+      BuildContext context, ExpenseProvider expenseProvider) {
+    final TextEditingController confirmController = TextEditingController();
+    bool isConfirmValid = false;
+
     showDialog(
       context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          icon: const Icon(
+            Icons.delete_forever,
+            color: Colors.red,
+            size: 44,
+          ),
+          title: const Text(
+            'PERMANENT DELETION',
+            style: TextStyle(
+              color: Colors.red,
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red, width: 2),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'THIS ACTION WILL:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text('• Delete ALL expenses from your device'),
+                      Text('• Delete ALL backups from Google Drive'),
+                      Text('• Make data recovery IMPOSSIBLE'),
+                      SizedBox(height: 8),
+                      Text(
+                        'This action is IRREVERSIBLE!',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'To confirm permanent deletion, type "DELETE ALL DATA" below:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: confirmController,
+                  decoration: InputDecoration(
+                    hintText: 'DELETE ALL DATA',
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: isConfirmValid ? Colors.red : Colors.grey,
+                      ),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.red, width: 2),
+                    ),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      isConfirmValid = value.trim() == 'DELETE ALL DATA';
+                    });
+                  },
+                ),
+                if (isConfirmValid)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green, size: 16),
+                        SizedBox(width: 4),
+                        Text(
+                          'Confirmation text verified',
+                          style: TextStyle(color: Colors.green, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: isConfirmValid
+                  ? () {
+                      Navigator.pop(context);
+                      _showFinalWarning(context, expenseProvider);
+                    }
+                  : null,
+              child: Text(
+                'Continue',
+                style: TextStyle(
+                  color: isConfirmValid ? Colors.red : Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFinalWarning(
+      BuildContext context, ExpenseProvider expenseProvider) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Clear All Data'),
-        content: const Text(
-          'Are you sure you want to delete all expenses? This action cannot be undone.',
+        icon: const Icon(
+          Icons.error,
+          color: Colors.red,
+          size: 72,
+        ),
+        title: const Text(
+          'FINAL WARNING',
+          style: TextStyle(
+            color: Colors.red,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'This is your LAST CHANCE to cancel.',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Once you click "DELETE PERMANENTLY", all your expense data will be gone forever and cannot be recovered.',
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Are you absolutely sure?',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text(
+              'Cancel - Keep My Data',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            ),
           ),
           TextButton(
-            onPressed: () {
-              // Close dialog immediately
+            onPressed: () async {
               Navigator.pop(context);
 
-              // Clear data - instant UI update
-              expenseProvider.clearAllExpenses();
-
-              // Show feedback
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Row(
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text('All data cleared'),
-                    ],
-                  ),
-                  backgroundColor: Colors.red,
-                  duration: Duration(seconds: 2),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+              // Show fast deletion dialog with countdown
+              _showFastDeletionDialog(context, expenseProvider);
             },
             child: const Text(
-              'Delete All',
-              style: TextStyle(color: Colors.red),
+              'DELETE PERMANENTLY',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  void _showFastDeletionDialog(
+      BuildContext context, ExpenseProvider expenseProvider) async {
+    int countdown = 3;
+    bool deletionCompleted = false;
+
+    // Show countdown dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(
+                color: Colors.red,
+                strokeWidth: 3,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                deletionCompleted
+                    ? '✅ Deletion Complete!'
+                    : 'Permanently deleting all data...',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              if (!deletionCompleted)
+                Text(
+                  'Estimated: ${countdown}s remaining',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Start countdown timer
+    for (int i = 3; i > 0; i--) {
+      await Future.delayed(const Duration(seconds: 1));
+      if (context.mounted) {
+        // Find the dialog and update it
+        countdown = i - 1;
+        // The StatefulBuilder will rebuild automatically
+      }
+    }
+
+    // Perform permanent deletion
+    final stopwatch = Stopwatch()..start();
+    final success = await expenseProvider.permanentlyDeleteAllData();
+    stopwatch.stop();
+
+    if (context.mounted) {
+      // Update dialog to show completion
+      deletionCompleted = true;
+
+      // Auto-close after showing completion
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  success ? Icons.check_circle : Icons.error,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  success
+                      ? 'All data permanently deleted in ${stopwatch.elapsedMilliseconds}ms'
+                      : 'Deletion failed - please try again',
+                ),
+              ],
+            ),
+            backgroundColor: success ? Colors.red : Colors.orange,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildBottomNavBar(BuildContext context) {

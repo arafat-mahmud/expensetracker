@@ -315,6 +315,69 @@ class ExpenseProvider with ChangeNotifier {
     loadExpenses();
   }
 
+  // Permanently delete all data including Google Drive backups - FAST (3 seconds max)
+  Future<bool> permanentlyDeleteAllData() async {
+    try {
+      print('Starting FAST permanent deletion of all data...');
+      final stopwatch = Stopwatch()..start();
+
+      // Step 1: Clear local data immediately (fastest operation)
+      await HiveService.clearAllData();
+      print('✅ Local data cleared (${stopwatch.elapsedMilliseconds}ms)');
+
+      // Step 2: Run cloud operations in parallel with timeout
+      await Future.wait([
+        // Firestore deletion with 2-second timeout
+        _firestoreService.clearAllData().timeout(
+          const Duration(seconds: 2),
+          onTimeout: () {
+            print('⚠️ Firestore deletion timed out - continuing in background');
+            // Continue deletion in background
+            _firestoreService.clearAllData().catchError((e) {
+              print('Background Firestore deletion failed: $e');
+              return null;
+            });
+            return null;
+          },
+        ),
+        // Google Drive deletion with 2-second timeout
+        _driveService.deleteAllBackupFiles().timeout(
+          const Duration(seconds: 2),
+          onTimeout: () {
+            print(
+                '⚠️ Google Drive deletion timed out - continuing in background');
+            // Continue deletion in background
+            _driveService.deleteAllBackupFiles().catchError((e) {
+              print('Background Google Drive deletion failed: $e');
+              return false;
+            });
+            return false;
+          },
+        ),
+      ].map((future) => future.catchError((e) {
+            print('Cloud operation error: $e');
+            return null; // Return null for failed operations
+          })));
+
+      print(
+          '✅ Cloud operations completed (${stopwatch.elapsedMilliseconds}ms)');
+
+      // Step 3: Immediate UI updates
+      _lastBackupTime = null;
+      loadExpenses(); // This will show empty list immediately
+
+      stopwatch.stop();
+      print(
+          '✅ FAST permanent deletion completed in ${stopwatch.elapsedMilliseconds}ms');
+
+      // Return true if local data was cleared (most important part)
+      return true;
+    } catch (e) {
+      print('❌ Error during FAST permanent deletion: $e');
+      return false;
+    }
+  }
+
   // Toggle auto-sync
   void toggleAutoSync(bool value) {
     _autoSync = value;

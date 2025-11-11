@@ -61,7 +61,7 @@ dev_dependencies:
   build_runner: ^2.4.8
   
   # App Icon Generator
-  flutter_launcher_icons: ^0.13.1
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true

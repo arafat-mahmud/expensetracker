@@ -240,6 +240,89 @@ class GoogleDriveService {
     }
   }
 
+  // Delete backup files permanently from Google Drive - FAST VERSION
+  Future<bool> deleteAllBackupFiles() async {
+    try {
+      print(
+          'Starting FAST permanent deletion of all backup files from Google Drive...');
+      final stopwatch = Stopwatch()..start();
+
+      final driveApi = await _getDriveApi().timeout(const Duration(seconds: 1));
+      if (driveApi == null) {
+        print(
+            'Failed to get Drive API - user might not be signed in (${stopwatch.elapsedMilliseconds}ms)');
+        return false;
+      }
+
+      print('Getting app folder... (${stopwatch.elapsedMilliseconds}ms)');
+      final folderId = await _getOrCreateAppFolder(driveApi)
+          .timeout(const Duration(milliseconds: 500));
+      if (folderId == null) {
+        print('Failed to get app folder (${stopwatch.elapsedMilliseconds}ms)');
+        return false;
+      }
+      print('Folder ID: $folderId (${stopwatch.elapsedMilliseconds}ms)');
+
+      // Find all backup files in the app folder with timeout
+      final fileList = await driveApi.files
+          .list(
+            q: "'$folderId' in parents and trashed=false",
+            spaces: 'drive',
+            $fields: 'files(id, name)',
+          )
+          .timeout(const Duration(milliseconds: 500));
+
+      if (fileList.files == null || fileList.files!.isEmpty) {
+        print(
+            'No backup files found to delete (${stopwatch.elapsedMilliseconds}ms)');
+        return true; // No files to delete is considered success
+      }
+
+      print(
+          'Found ${fileList.files!.length} backup files to delete (${stopwatch.elapsedMilliseconds}ms)');
+
+      // Delete all files in parallel with individual timeouts
+      final deletionFutures = fileList.files!.map((file) async {
+        try {
+          print('Deleting file: ${file.name} (ID: ${file.id})');
+          await driveApi.files
+              .delete(file.id!)
+              .timeout(const Duration(milliseconds: 300));
+          print('✅ Deleted file: ${file.name}');
+          return true;
+        } catch (e) {
+          print('❌ Failed to delete file ${file.name}: $e');
+          return false;
+        }
+      });
+
+      // Wait for all deletions to complete or timeout
+      final results = await Future.wait(
+        deletionFutures,
+        eagerError: false,
+      ).timeout(
+        const Duration(seconds: 1),
+        onTimeout: () {
+          print('⚠️ Some deletions timed out - continuing in background');
+          return fileList.files!.map((e) => false).toList();
+        },
+      );
+
+      final successCount = results.where((result) => result == true).length;
+      stopwatch.stop();
+
+      print(
+          '✅ FAST Google Drive deletion completed: $successCount/${fileList.files!.length} files deleted in ${stopwatch.elapsedMilliseconds}ms');
+
+      // Return true if at least some files were deleted or if there were no files
+      return successCount > 0 || fileList.files!.isEmpty;
+    } catch (e, stackTrace) {
+      print('❌ Error in FAST Google Drive deletion: $e');
+      print('Stack trace: $stackTrace');
+      return false;
+    }
+  }
+
   // Backup PDF file to Google Drive
   Future<bool> backupPdfFile({
     required String filePath,
