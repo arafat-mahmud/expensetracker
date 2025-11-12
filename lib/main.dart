@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'services/hive_service.dart';
+import 'services/user_data_manager.dart';
 import 'providers/expense_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/budget_provider.dart';
@@ -21,6 +22,9 @@ void main() async {
 
   // Initialize Hive
   await HiveService.init();
+
+  // Initialize User Data Manager for proper data isolation
+  UserDataManager().initialize();
 
   runApp(const ExpenseTrackerApp());
 }

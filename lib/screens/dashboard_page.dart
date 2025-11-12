@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/expense_provider.dart';
 import '../providers/budget_provider.dart';
+import '../providers/auth_provider.dart';
 import '../models/expense_model.dart';
 import '../widgets/category_pie_chart.dart';
 import '../widgets/daily_bar_chart.dart';
@@ -22,14 +23,48 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   DateTime selectedMonth = DateTime.now();
   bool _isRestoringInBackground = false;
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
+    // Store the current user ID
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    _currentUserId = authProvider.user?.uid;
+
     // Trigger background restore after the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _performBackgroundRestore();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Check if the user has changed
+    final authProvider = Provider.of<AuthProvider>(context);
+    final newUserId = authProvider.user?.uid;
+
+    if (_currentUserId != null &&
+        newUserId != null &&
+        _currentUserId != newUserId) {
+      print('🔄 User changed in DashboardPage, reloading expenses...');
+      _currentUserId = newUserId;
+
+      // Reset the background restore flag for the new user
+      BackgroundRestoreHandler.resetRestoreFlag();
+
+      // Reload expenses for the new user
+      final expenseProvider =
+          Provider.of<ExpenseProvider>(context, listen: false);
+      expenseProvider.reloadForNewUser();
+
+      // Trigger background restore for the new user
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _performBackgroundRestore();
+      });
+    }
   }
 
   Future<void> _performBackgroundRestore() async {

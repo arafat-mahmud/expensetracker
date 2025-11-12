@@ -14,34 +14,30 @@ class GoogleDriveService {
   // Get authenticated Drive API client
   Future<drive.DriveApi?> _getDriveApi() async {
     try {
-      // Try to get existing account first
+      // Get existing account using lightweight authentication (no prompts)
+      print('Getting Google account for Drive API...');
       GoogleSignInAccount? account =
           await _authService.getGoogleSignInAccount();
 
-      // If no account, request sign-in with Drive scopes
+      // If no account, user needs to sign in first
       if (account == null) {
-        print(
-            'No existing Google account, requesting sign-in with Drive scopes...');
-        account = await _authService.googleSignInInstance.authenticate(
-          scopeHint: [
-            'email',
-            'https://www.googleapis.com/auth/drive.file',
-            'https://www.googleapis.com/auth/drive.appdata',
-          ],
-        );
+        print('❌ No Google account available - user needs to sign in first');
+        return null;
       }
 
-      print('Using Google account: ${account.email}');
+      print('✅ Using Google account: ${account.email}');
 
       // Get authorization headers for Drive API
+      // Set promptIfNecessary to false to prevent repeated account picker dialogs
       final authHeaders =
           await account.authorizationClient.authorizationHeaders([
         'https://www.googleapis.com/auth/drive.file',
         'https://www.googleapis.com/auth/drive.appdata',
-      ], promptIfNecessary: true);
+      ], promptIfNecessary: false);
 
       if (authHeaders == null) {
-        print('Failed to get authorization headers');
+        print(
+            'Failed to get authorization headers - user may need to re-authenticate');
         return null;
       }
 

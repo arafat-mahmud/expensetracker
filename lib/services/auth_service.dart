@@ -8,6 +8,9 @@ class AuthService {
   // Use the singleton instance
   GoogleSignIn get _googleSignIn => GoogleSignIn.instance;
 
+  // Cache the Google Sign In account after successful authentication
+  GoogleSignInAccount? _cachedGoogleAccount;
+
   // Get current user
   User? get currentUser => _auth.currentUser;
 
@@ -28,6 +31,10 @@ class AuthService {
           'https://www.googleapis.com/auth/drive.appdata',
         ],
       );
+
+      // Cache the Google account for later Drive API use
+      _cachedGoogleAccount = googleUser;
+      print('✅ Cached Google account: ${googleUser.email}');
 
       // Obtain the auth details from the request
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
@@ -65,20 +72,51 @@ class AuthService {
   // Get Google Sign In account for Drive API
   Future<GoogleSignInAccount?> getGoogleSignInAccount() async {
     try {
-      // Try lightweight authentication first
-      GoogleSignInAccount? account =
+      // First, check if we have a cached account from recent sign-in
+      if (_cachedGoogleAccount != null) {
+        // Validate that the cached account matches the current Firebase user
+        final currentFirebaseUser = _auth.currentUser;
+        if (currentFirebaseUser != null &&
+            currentFirebaseUser.email == _cachedGoogleAccount!.email) {
+          print(
+              '✅ Using cached Google account: ${_cachedGoogleAccount!.email}');
+          return _cachedGoogleAccount;
+        } else {
+          // Cached account doesn't match current user, clear it
+          print(
+              '⚠️ Cached account (${_cachedGoogleAccount!.email}) doesn\'t match current Firebase user (${currentFirebaseUser?.email}), clearing cache');
+          _cachedGoogleAccount = null;
+        }
+      }
+
+      // Use lightweight authentication (uses already signed-in account without prompting)
+      print('Attempting lightweight authentication to get Google account...');
+      final GoogleSignInAccount? account =
           await _googleSignIn.attemptLightweightAuthentication();
 
-      // If no account, try full authentication
-      account ??= await _googleSignIn.authenticate(
-        scopeHint: [
-          'email',
-          'https://www.googleapis.com/auth/drive.file',
-          'https://www.googleapis.com/auth/drive.appdata',
-        ],
-      );
+      if (account != null) {
+        // Validate that the lightweight account matches the current Firebase user
+        final currentFirebaseUser = _auth.currentUser;
+        if (currentFirebaseUser != null &&
+            currentFirebaseUser.email == account.email) {
+          print('✅ Lightweight authentication successful: ${account.email}');
+          // Cache the account for future use
+          _cachedGoogleAccount = account;
+          return account;
+        } else {
+          // Account doesn't match current user, don't use it
+          print(
+              '⚠️ Lightweight account (${account.email}) doesn\'t match current Firebase user (${currentFirebaseUser?.email}), rejecting');
+          return null;
+        }
+      }
 
-      return account;
+      // If lightweight authentication fails, it means user needs to sign in first
+      // DO NOT call authenticate() here as it will show the account picker again
+      // The user should use the "Sign in with Google" button instead
+      print(
+          '⚠️ Lightweight authentication failed - user needs to sign in first');
+      return null;
     } on PlatformException catch (e) {
       print('Google Sign In Platform Exception: $e');
       // Handle cancellation error specifically
@@ -108,6 +146,8 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
+    // Clear the cached Google account
+    _cachedGoogleAccount = null;
     await Future.wait([
       _auth.signOut(),
       _googleSignIn.signOut(),
@@ -132,5 +172,14 @@ class AuthService {
   // Get user ID
   String? getUserId() {
     return _auth.currentUser?.uid;
+  }
+
+  // Clear cached Google account (called when different user detected)
+  void clearCachedGoogleAccount() {
+    if (_cachedGoogleAccount != null) {
+      print(
+          '🧹 Clearing cached Google account: ${_cachedGoogleAccount!.email}');
+      _cachedGoogleAccount = null;
+    }
   }
 }

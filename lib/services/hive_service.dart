@@ -81,9 +81,31 @@ class HiveService {
     return box.get('isDarkMode', defaultValue: false) as bool;
   }
 
+  // Settings - Current User ID (to track which user's data is stored)
+  static Future<void> setCurrentUserId(String userId) async {
+    final box = getSettingsBox();
+    await box.put('currentUserId', userId);
+  }
+
+  static String? getCurrentUserId() {
+    final box = getSettingsBox();
+    return box.get('currentUserId') as String?;
+  }
+
+  static Future<void> clearCurrentUserId() async {
+    final box = getSettingsBox();
+    await box.delete('currentUserId');
+  }
+
   // Clear all data
   static Future<void> clearAllData() async {
     final expenseBox = getExpenseBox();
     await expenseBox.clear();
+  }
+
+  // Clear all settings (including user ID)
+  static Future<void> clearAllSettings() async {
+    final settingsBox = getSettingsBox();
+    await settingsBox.clear();
   }
 }

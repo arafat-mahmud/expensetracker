@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/expense_model.dart';
 import '../services/hive_service.dart';
 import '../services/google_drive_service.dart';
+import '../services/auth_service.dart';
 
 class ExpenseProvider with ChangeNotifier {
   List<Expense> _expenses = [];
@@ -9,6 +10,8 @@ class ExpenseProvider with ChangeNotifier {
   bool _autoSync = true; // Auto-backup to Google Drive
   DateTime? _lastBackupTime; // Track last backup time
   final GoogleDriveService _driveService = GoogleDriveService();
+  final AuthService _authService = AuthService();
+  String? _currentUserId; // Track current user to detect switches
 
   List<Expense> get expenses => _expenses;
   DateTime get selectedMonth => _selectedMonth;
@@ -29,8 +32,64 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   ExpenseProvider() {
+    _currentUserId = _authService.getUserId();
     loadExpenses();
     _loadLastBackupTime();
+
+    // Listen to auth state changes to detect user switches
+    _authService.authStateChanges.listen((user) {
+      final newUserId = user?.uid;
+      if (_currentUserId != newUserId) {
+        print(
+            'ExpenseProvider: User switch detected from $_currentUserId to $newUserId');
+        _currentUserId = newUserId;
+        if (newUserId != null) {
+          // New user signed in, reload data
+          reloadForNewUser();
+        } else {
+          // User signed out, clear data
+          _clearDataOnSignOut();
+        }
+      }
+    });
+  }
+
+  // Clear data when user signs out
+  void _clearDataOnSignOut() {
+    print('ExpenseProvider: Clearing data on sign out');
+    _expenses = [];
+    _lastBackupTime = null;
+    _selectedMonth = DateTime.now();
+    notifyListeners();
+  }
+
+  // Reload expenses for a new user (called after user switch)
+  Future<void> reloadForNewUser() async {
+    print('🔄 ExpenseProvider: Reloading expenses for new user...');
+
+    // Clear current data first
+    _expenses = [];
+    _lastBackupTime = null;
+    _selectedMonth = DateTime.now();
+    notifyListeners(); // Immediately show empty state
+
+    // Load new user's data
+    loadExpenses();
+    await _loadLastBackupTime();
+
+    // Try to restore from Google Drive backup for new user
+    if (_expenses.isEmpty) {
+      print('No local data found, attempting Google Drive restore...');
+      final restored = await restoreFromGoogleDrive();
+      if (restored) {
+        print('✅ Data restored from Google Drive backup');
+      } else {
+        print('No Google Drive backup found for this user');
+      }
+    }
+
+    print(
+        '✅ ExpenseProvider: Expenses reloaded for new user (${_expenses.length} expenses)');
   }
 
   // Load last backup time on initialization
@@ -390,5 +449,17 @@ class ExpenseProvider with ChangeNotifier {
       print('Failed to get last backup time: $e');
       return null;
     }
+  }
+
+  // Debug method to get current user context
+  Map<String, dynamic> getDebugInfo() {
+    return {
+      'currentUserId': _currentUserId,
+      'authServiceUserId': _authService.getUserId(),
+      'expenseCount': _expenses.length,
+      'selectedMonth': _selectedMonth.toString(),
+      'autoSync': _autoSync,
+      'lastBackupTime': _lastBackupTime?.toString(),
+    };
   }
 }

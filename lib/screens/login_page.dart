@@ -52,7 +52,7 @@ class LoginPage extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 25),
+                  const SizedBox(height: 35),
 
                   // App Name
                   Text(

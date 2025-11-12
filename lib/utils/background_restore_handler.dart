@@ -6,6 +6,12 @@ import '../providers/expense_provider.dart';
 class BackgroundRestoreHandler {
   static bool _hasTriedRestore = false;
 
+  // Reset the restore flag (useful when a new user signs in)
+  static void resetRestoreFlag() {
+    _hasTriedRestore = false;
+    print('🔄 Background restore flag reset');
+  }
+
   static Future<void> performAutoRestore(BuildContext context) async {
     if (_hasTriedRestore) return;
     _hasTriedRestore = true;
