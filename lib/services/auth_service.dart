@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/services.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -38,8 +39,25 @@ class AuthService {
 
       // Sign in to Firebase with the Google credential
       return await _auth.signInWithCredential(credential);
+    } on PlatformException catch (e) {
+      print('Google Sign In Platform Exception: $e');
+      // Handle cancellation error specifically
+      if (e.code == 'sign_in_canceled' ||
+          e.code == 'canceled' ||
+          e.message?.toLowerCase().contains('cancel') == true) {
+        print('User cancelled the sign-in flow');
+        return null;
+      }
+      rethrow;
     } catch (e) {
       print('Error signing in with Google: $e');
+      // Check if it's a cancellation error in the message
+      if (e.toString().contains('canceled') ||
+          e.toString().contains('cancelled') ||
+          e.toString().contains('CANCELED')) {
+        print('User cancelled the sign-in flow');
+        return null;
+      }
       rethrow;
     }
   }
@@ -61,8 +79,26 @@ class AuthService {
       );
 
       return account;
+    } on PlatformException catch (e) {
+      print('Google Sign In Platform Exception: $e');
+      // Handle cancellation error specifically
+      if (e.code == 'sign_in_canceled' ||
+          e.code == 'canceled' ||
+          e.message?.toLowerCase().contains('cancel') == true) {
+        print('User cancelled the Google Sign In');
+        return null;
+      }
+      print('Error getting Google Sign In account: $e');
+      return null;
     } catch (e) {
       print('Error getting Google Sign In account: $e');
+      // Check if it's a cancellation error in the message
+      if (e.toString().contains('canceled') ||
+          e.toString().contains('cancelled') ||
+          e.toString().contains('CANCELED')) {
+        print('User cancelled the Google Sign In');
+        return null;
+      }
       return null;
     }
   }

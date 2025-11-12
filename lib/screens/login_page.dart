@@ -52,7 +52,7 @@ class LoginPage extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 25),
 
                   // App Name
                   Text(
@@ -60,6 +60,7 @@ class LoginPage extends StatelessWidget {
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary,
+                          fontSize: 35,
                         ),
                   ),
                   const SizedBox(height: 8),
@@ -101,15 +102,21 @@ class LoginPage extends StatelessWidget {
                       onPressed: () async {
                         final success = await authProvider.signInWithGoogle();
                         if (!success && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                authProvider.errorMessage ??
-                                    'Failed to sign in',
+                          // Only show error if there's an actual error message
+                          // Don't show error for user cancellation
+                          if (authProvider.errorMessage != null &&
+                              authProvider.errorMessage !=
+                                  'Sign in cancelled') {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  authProvider.errorMessage ??
+                                      'Failed to sign in',
+                                ),
+                                backgroundColor: Colors.red,
                               ),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
+                            );
+                          }
                         }
                       },
                       icon: Image.asset(
