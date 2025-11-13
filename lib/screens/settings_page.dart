@@ -663,6 +663,7 @@ class _DeletionProgressDialogState extends State<_DeletionProgressDialog>
   bool deletionCompleted = false;
   bool deletionStarted = false;
   late AnimationController _animationController;
+  int deletionTimeElapsed = 0;
 
   @override
   void initState() {
@@ -696,6 +697,19 @@ class _DeletionProgressDialogState extends State<_DeletionProgressDialog>
     if (!mounted) return;
     setState(() {
       deletionStarted = true;
+      deletionTimeElapsed = 0;
+    });
+
+    // Start counting up timer during deletion
+    Future(() async {
+      while (!deletionCompleted && mounted) {
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted && !deletionCompleted) {
+          setState(() {
+            deletionTimeElapsed++;
+          });
+        }
+      }
     });
 
     // Perform permanent deletion
@@ -802,11 +816,12 @@ class _DeletionProgressDialogState extends State<_DeletionProgressDialog>
                       ),
                     ),
                   if (deletionStarted && !deletionCompleted)
-                    const Text(
-                      'Please wait...',
-                      style: TextStyle(
+                    Text(
+                      'Deleting... ${deletionTimeElapsed}s elapsed',
+                      style: const TextStyle(
                         fontSize: 12,
-                        color: Colors.grey,
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                 ],
