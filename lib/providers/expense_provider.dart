@@ -123,7 +123,8 @@ class ExpenseProvider with ChangeNotifier {
     if (_autoSync) {
       try {
         print('Attempting Google Drive backup...');
-        final success = await _driveService.backupExpenses(_expenses);
+        final monthlyBudget = HiveService.getMonthlyBudget();
+        final success = await _driveService.backupExpenses(_expenses, monthlyBudget: monthlyBudget);
         if (success) {
           print('✅ Auto-backup to Google Drive successful');
           _lastBackupTime = DateTime.now();
@@ -150,7 +151,8 @@ class ExpenseProvider with ChangeNotifier {
     if (_autoSync) {
       try {
         print('Attempting Google Drive backup after update...');
-        final success = await _driveService.backupExpenses(_expenses);
+        final monthlyBudget = HiveService.getMonthlyBudget();
+        final success = await _driveService.backupExpenses(_expenses, monthlyBudget: monthlyBudget);
         if (success) {
           print('✅ Auto-backup to Google Drive successful');
           _lastBackupTime = DateTime.now();
@@ -176,7 +178,8 @@ class ExpenseProvider with ChangeNotifier {
     // Auto-backup to Google Drive if enabled (in background)
     if (_autoSync) {
       try {
-        final success = await _driveService.backupExpenses(_expenses);
+        final monthlyBudget = HiveService.getMonthlyBudget();
+        final success = await _driveService.backupExpenses(_expenses, monthlyBudget: monthlyBudget);
         if (success) {
           print('Auto-backup to Google Drive successful after delete');
           _lastBackupTime = DateTime.now();
@@ -404,7 +407,8 @@ class ExpenseProvider with ChangeNotifier {
   // Manual backup to Google Drive
   Future<bool> backupToGoogleDrive() async {
     try {
-      final success = await _driveService.backupExpenses(_expenses);
+      final monthlyBudget = HiveService.getMonthlyBudget();
+      final success = await _driveService.backupExpenses(_expenses, monthlyBudget: monthlyBudget);
       if (success) {
         _lastBackupTime = DateTime.now();
         notifyListeners(); // Update UI with new backup time
@@ -419,18 +423,30 @@ class ExpenseProvider with ChangeNotifier {
   // Restore from Google Drive (automatic restore after sign-in)
   Future<bool> restoreFromGoogleDrive() async {
     try {
-      final expenses = await _driveService.restoreExpenses();
-      if (expenses != null && expenses.isNotEmpty) {
-        // Clear existing local data first
-        await HiveService.clearAllData();
+      final restoreData = await _driveService.restoreExpenses();
+      if (restoreData != null) {
+        final expenses = restoreData['expenses'] as List<Expense>?;
+        final monthlyBudget = restoreData['monthlyBudget'] as double?;
+        
+        if (expenses != null && expenses.isNotEmpty) {
+          // Clear existing local data first
+          await HiveService.clearAllData();
 
-        // Save restored data to Hive
-        for (var expense in expenses) {
-          await HiveService.addExpense(expense);
+          // Save restored data to Hive
+          for (var expense in expenses) {
+            await HiveService.addExpense(expense);
+          }
+          loadExpenses();
+          print(
+              '✅ Automatic restore successful: ${expenses.length} expenses restored');
         }
-        loadExpenses();
-        print(
-            '✅ Automatic restore successful: ${expenses.length} expenses restored');
+        
+        // Restore monthly budget if available
+        if (monthlyBudget != null) {
+          await HiveService.setMonthlyBudget(monthlyBudget);
+          print('✅ Monthly budget restored: $monthlyBudget');
+        }
+        
         return true;
       }
       print('ℹ️ No backup data found to restore');

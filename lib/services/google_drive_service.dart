@@ -82,7 +82,7 @@ class GoogleDriveService {
   }
 
   // Backup expenses to Google Drive
-  Future<bool> backupExpenses(List<Expense> expenses) async {
+  Future<bool> backupExpenses(List<Expense> expenses, {double? monthlyBudget}) async {
     try {
       print('Starting Google Drive backup for ${expenses.length} expenses...');
 
@@ -107,6 +107,7 @@ class GoogleDriveService {
         'userEmail': _authService.getUserEmail(),
         'expensesCount': expenses.length,
         'expenses': expenses.map((e) => e.toJson()).toList(),
+        'monthlyBudget': monthlyBudget,
       };
 
       final jsonData = jsonEncode(backupData);
@@ -159,7 +160,7 @@ class GoogleDriveService {
   }
 
   // Restore expenses from Google Drive
-  Future<List<Expense>?> restoreExpenses() async {
+  Future<Map<String, dynamic>?> restoreExpenses() async {
     try {
       final driveApi = await _getDriveApi();
       if (driveApi == null) {
@@ -207,8 +208,13 @@ class GoogleDriveService {
           .map((e) => Expense.fromJson(e as Map<String, dynamic>))
           .toList();
 
-      print('Restore successful: ${expenses.length} expenses');
-      return expenses;
+      final monthlyBudget = backupData['monthlyBudget'] as double?;
+
+      print('Restore successful: ${expenses.length} expenses, budget: $monthlyBudget');
+      return {
+        'expenses': expenses,
+        'monthlyBudget': monthlyBudget,
+      };
     } catch (e) {
       print('Error restoring from Google Drive: $e');
       return null;

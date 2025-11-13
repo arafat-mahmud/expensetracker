@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import '../services/hive_service.dart';
 import '../services/auth_service.dart';
+import '../services/google_drive_service.dart';
 
 class BudgetProvider with ChangeNotifier {
   double _monthlyBudget = 10000.0;
   final AuthService _authService = AuthService();
+  final GoogleDriveService _driveService = GoogleDriveService();
   String? _currentUserId;
 
   double get monthlyBudget => _monthlyBudget;
@@ -41,6 +43,15 @@ class BudgetProvider with ChangeNotifier {
     _monthlyBudget = budget;
     await HiveService.setMonthlyBudget(budget);
     notifyListeners();
+    
+    // Backup to Google Drive immediately
+    try {
+      final expenses = HiveService.getAllExpenses();
+      await _driveService.backupExpenses(expenses, monthlyBudget: budget);
+      print('✅ Budget backed up to Google Drive: $budget');
+    } catch (e) {
+      print('⚠️ Failed to backup budget to Drive: $e');
+    }
   }
 
   double getBudgetUsedPercentage(double totalExpense) {
