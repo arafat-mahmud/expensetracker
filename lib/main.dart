@@ -84,6 +84,7 @@ class ExpenseTrackerApp extends StatelessWidget {
                     ? const DashboardPage()
                     : const LoginPage(),
                 routes: {
+                  '/': (context) => const DashboardPage(),
                   '/history': (context) => const HistoryPage(),
                   '/settings': (context) => const SettingsPage(),
                   '/statement': (context) => const StatementPage(),

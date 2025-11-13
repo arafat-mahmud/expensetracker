@@ -621,10 +621,9 @@ class _SettingsPageState extends State<SettingsPage> {
       currentIndex: 2,
       onTap: (index) {
         if (index == 0) {
-          Navigator.popUntil(context, (route) => route.isFirst);
+          Navigator.pushReplacementNamed(context, '/');
         } else if (index == 1) {
-          Navigator.pop(context);
-          Navigator.pushNamed(context, '/history');
+          Navigator.pushReplacementNamed(context, '/history');
         }
       },
       items: const [

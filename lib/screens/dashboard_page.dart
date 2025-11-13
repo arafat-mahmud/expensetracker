@@ -640,9 +640,9 @@ class _DashboardPageState extends State<DashboardPage> {
       currentIndex: 0,
       onTap: (index) {
         if (index == 1) {
-          Navigator.pushNamed(context, '/history');
+          Navigator.pushReplacementNamed(context, '/history');
         } else if (index == 2) {
-          Navigator.pushNamed(context, '/settings');
+          Navigator.pushReplacementNamed(context, '/settings');
         }
       },
       items: const [

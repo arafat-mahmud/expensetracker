@@ -256,9 +256,9 @@ class _HistoryPageState extends State<HistoryPage> {
       currentIndex: 1,
       onTap: (index) {
         if (index == 0) {
-          Navigator.pop(context);
+          Navigator.pushReplacementNamed(context, '/');
         } else if (index == 2) {
-          Navigator.pushNamed(context, '/settings');
+          Navigator.pushReplacementNamed(context, '/settings');
         }
       },
       items: const [
