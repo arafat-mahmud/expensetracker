@@ -82,7 +82,8 @@ class GoogleDriveService {
   }
 
   // Backup expenses to Google Drive
-  Future<bool> backupExpenses(List<Expense> expenses, {double? monthlyBudget}) async {
+  Future<bool> backupExpenses(List<Expense> expenses,
+      {double? monthlyBudget}) async {
     try {
       print('Starting Google Drive backup for ${expenses.length} expenses...');
 
@@ -210,7 +211,8 @@ class GoogleDriveService {
 
       final monthlyBudget = backupData['monthlyBudget'] as double?;
 
-      print('Restore successful: ${expenses.length} expenses, budget: $monthlyBudget');
+      print(
+          'Restore successful: ${expenses.length} expenses, budget: $monthlyBudget');
       return {
         'expenses': expenses,
         'monthlyBudget': monthlyBudget,

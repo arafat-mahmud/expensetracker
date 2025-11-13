@@ -43,7 +43,7 @@ class BudgetProvider with ChangeNotifier {
     _monthlyBudget = budget;
     await HiveService.setMonthlyBudget(budget);
     notifyListeners();
-    
+
     // Backup to Google Drive immediately
     try {
       final expenses = HiveService.getAllExpenses();
