@@ -646,6 +646,13 @@ class _DeletionProgressDialogState extends State<_DeletionProgressDialog>
 
     if (!mounted) return;
 
+    // Reload budget provider to reflect the reset budget
+    if (mounted) {
+      final budgetProvider =
+          Provider.of<BudgetProvider>(context, listen: false);
+      budgetProvider.reloadBudget();
+    }
+
     // Show completion
     setState(() {
       deletionCompleted = true;

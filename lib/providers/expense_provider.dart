@@ -415,7 +415,10 @@ class ExpenseProvider with ChangeNotifier {
 
       // Step 1: Clear local data immediately (fastest operation)
       await HiveService.clearAllData();
-      print('✅ Local data cleared (${stopwatch.elapsedMilliseconds}ms)');
+      // Also reset monthly budget to default
+      await HiveService.setMonthlyBudget(10000.0);
+      print(
+          '✅ Local data cleared and budget reset (${stopwatch.elapsedMilliseconds}ms)');
 
       // Step 2: Delete Google Drive backups with timeout
       final driveDeleteSuccess =
