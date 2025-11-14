@@ -72,50 +72,62 @@ class AuthService {
   // Get Google Sign In account for Drive API
   Future<GoogleSignInAccount?> getGoogleSignInAccount() async {
     try {
+      print('🔐 [AUTH] Getting Google account for Drive API...');
+      final currentFirebaseUser = _auth.currentUser;
+      print('🔐 [AUTH] Current Firebase user: ${currentFirebaseUser?.email}');
+
       // First, check if we have a cached account from recent sign-in
       if (_cachedGoogleAccount != null) {
+        print('🔐 [AUTH] Found cached account: ${_cachedGoogleAccount!.email}');
         // Validate that the cached account matches the current Firebase user
-        final currentFirebaseUser = _auth.currentUser;
         if (currentFirebaseUser != null &&
             currentFirebaseUser.email == _cachedGoogleAccount!.email) {
           print(
-              '✅ Using cached Google account: ${_cachedGoogleAccount!.email}');
+              '✅ [AUTH] Using cached Google account: ${_cachedGoogleAccount!.email}');
           return _cachedGoogleAccount;
         } else {
           // Cached account doesn't match current user, clear it
           print(
-              '⚠️ Cached account (${_cachedGoogleAccount!.email}) doesn\'t match current Firebase user (${currentFirebaseUser?.email}), clearing cache');
+              '⚠️ [AUTH] Cached account (${_cachedGoogleAccount!.email}) doesn\'t match current Firebase user (${currentFirebaseUser?.email}), clearing cache');
           _cachedGoogleAccount = null;
         }
       }
 
+      // Skip checking current user as the API doesn't provide it directly
+      print('🔐 [AUTH] Proceeding with authentication methods...');
+
       // Use lightweight authentication (uses already signed-in account without prompting)
-      print('Attempting lightweight authentication to get Google account...');
+      print(
+          '🔐 [AUTH] Attempting lightweight authentication to get Google account...');
       final GoogleSignInAccount? account =
           await _googleSignIn.attemptLightweightAuthentication();
 
       if (account != null) {
+        print(
+            '🔐 [AUTH] Lightweight authentication returned: ${account.email}');
         // Validate that the lightweight account matches the current Firebase user
-        final currentFirebaseUser = _auth.currentUser;
         if (currentFirebaseUser != null &&
             currentFirebaseUser.email == account.email) {
-          print('✅ Lightweight authentication successful: ${account.email}');
+          print(
+              '✅ [AUTH] Lightweight authentication successful: ${account.email}');
           // Cache the account for future use
           _cachedGoogleAccount = account;
           return account;
         } else {
           // Account doesn't match current user, don't use it
           print(
-              '⚠️ Lightweight account (${account.email}) doesn\'t match current Firebase user (${currentFirebaseUser?.email}), rejecting');
+              '⚠️ [AUTH] Lightweight account (${account.email}) doesn\'t match current Firebase user (${currentFirebaseUser?.email}), rejecting');
           return null;
         }
       }
 
-      // If lightweight authentication fails, it means user needs to sign in first
-      // DO NOT call authenticate() here as it will show the account picker again
-      // The user should use the "Sign in with Google" button instead
+      // If lightweight authentication fails, that's our best attempt without prompting
       print(
-          '⚠️ Lightweight authentication failed - user needs to sign in first');
+          '🔐 [AUTH] Lightweight authentication failed, no other silent methods available');
+
+      // If all methods fail, user needs to sign in first
+      print(
+          '❌ [AUTH] All authentication methods failed - user needs to sign in first');
       return null;
     } on PlatformException catch (e) {
       print('Google Sign In Platform Exception: $e');
@@ -180,6 +192,30 @@ class AuthService {
       print(
           '🧹 Clearing cached Google account: ${_cachedGoogleAccount!.email}');
       _cachedGoogleAccount = null;
+    }
+  }
+
+  // Refresh Google authentication for Drive access
+  Future<bool> refreshGoogleAuthentication() async {
+    try {
+      print('🔄 Refreshing Google authentication...');
+
+      // Clear cached account to force fresh authentication
+      _cachedGoogleAccount = null;
+
+      // Try to get account with fresh authentication
+      final account = await getGoogleSignInAccount();
+      if (account != null) {
+        print(
+            '✅ Google authentication refreshed successfully: ${account.email}');
+        return true;
+      } else {
+        print('❌ Failed to refresh Google authentication');
+        return false;
+      }
+    } catch (e) {
+      print('❌ Error refreshing Google authentication: $e');
+      return false;
     }
   }
 }

@@ -121,20 +121,51 @@ class ExpenseProvider with ChangeNotifier {
     // Auto-backup to Google Drive if enabled (in background)
     if (_autoSync) {
       try {
-        print('Attempting Google Drive backup...');
+        print('🚀 [EXPENSE_PROVIDER] Attempting Google Drive backup...');
+        print('🚀 [EXPENSE_PROVIDER] Auto-sync enabled: $_autoSync');
+        print(
+            '🚀 [EXPENSE_PROVIDER] Total expenses to backup: ${_expenses.length}');
+        print(
+            '🚀 [EXPENSE_PROVIDER] Current user: ${_authService.getUserEmail()}');
+
         final monthlyBudget = HiveService.getMonthlyBudget();
-        final success = await _driveService.backupExpenses(_expenses,
+        print('🚀 [EXPENSE_PROVIDER] Monthly budget: $monthlyBudget');
+
+        // First attempt backup
+        print('🚀 [EXPENSE_PROVIDER] Starting first backup attempt...');
+        bool success = await _driveService.backupExpenses(_expenses,
             monthlyBudget: monthlyBudget);
+
+        // If backup fails, try to ensure Drive is ready and retry once
+        if (!success) {
+          print(
+              '⚠️ [EXPENSE_PROVIDER] Initial backup failed, ensuring Drive readiness and retrying...');
+          final driveReady =
+              await _driveService.ensureDriveReadyAfterDeletion();
+          if (driveReady) {
+            print(
+                '🚀 [EXPENSE_PROVIDER] Drive is ready, attempting second backup...');
+            success = await _driveService.backupExpenses(_expenses,
+                monthlyBudget: monthlyBudget);
+          } else {
+            print('❌ [EXPENSE_PROVIDER] Failed to prepare Drive for backup');
+          }
+        }
+
         if (success) {
-          print('✅ Auto-backup to Google Drive successful');
+          print('✅ [EXPENSE_PROVIDER] Auto-backup to Google Drive successful');
           _lastBackupTime = DateTime.now();
           notifyListeners(); // Update UI with new backup time
         } else {
-          print('⚠️ Auto-backup to Google Drive failed');
+          print(
+              '⚠️ [EXPENSE_PROVIDER] Auto-backup to Google Drive failed after retry');
         }
-      } catch (e) {
-        print('❌ Failed to backup to Google Drive: $e');
+      } catch (e, stackTrace) {
+        print('❌ [EXPENSE_PROVIDER] Failed to backup to Google Drive: $e');
+        print('❌ [EXPENSE_PROVIDER] Stack trace: $stackTrace');
       }
+    } else {
+      print('⚠️ [EXPENSE_PROVIDER] Auto-sync is disabled, skipping backup');
     }
   }
 
@@ -152,14 +183,29 @@ class ExpenseProvider with ChangeNotifier {
       try {
         print('Attempting Google Drive backup after update...');
         final monthlyBudget = HiveService.getMonthlyBudget();
-        final success = await _driveService.backupExpenses(_expenses,
+
+        // First attempt backup
+        bool success = await _driveService.backupExpenses(_expenses,
             monthlyBudget: monthlyBudget);
+
+        // If backup fails, try to ensure Drive is ready and retry once
+        if (!success) {
+          print(
+              '⚠️ Initial backup failed, ensuring Drive readiness and retrying...');
+          final driveReady =
+              await _driveService.ensureDriveReadyAfterDeletion();
+          if (driveReady) {
+            success = await _driveService.backupExpenses(_expenses,
+                monthlyBudget: monthlyBudget);
+          }
+        }
+
         if (success) {
           print('✅ Auto-backup to Google Drive successful');
           _lastBackupTime = DateTime.now();
           notifyListeners(); // Update UI with new backup time
         } else {
-          print('⚠️ Auto-backup to Google Drive failed');
+          print('⚠️ Auto-backup to Google Drive failed after retry');
         }
       } catch (e) {
         print('❌ Failed to backup to Google Drive: $e');
@@ -180,15 +226,32 @@ class ExpenseProvider with ChangeNotifier {
     if (_autoSync) {
       try {
         final monthlyBudget = HiveService.getMonthlyBudget();
-        final success = await _driveService.backupExpenses(_expenses,
+
+        // First attempt backup
+        bool success = await _driveService.backupExpenses(_expenses,
             monthlyBudget: monthlyBudget);
+
+        // If backup fails, try to ensure Drive is ready and retry once
+        if (!success) {
+          print(
+              '⚠️ Initial backup failed, ensuring Drive readiness and retrying...');
+          final driveReady =
+              await _driveService.ensureDriveReadyAfterDeletion();
+          if (driveReady) {
+            success = await _driveService.backupExpenses(_expenses,
+                monthlyBudget: monthlyBudget);
+          }
+        }
+
         if (success) {
-          print('Auto-backup to Google Drive successful after delete');
+          print('✅ Auto-backup to Google Drive successful after delete');
           _lastBackupTime = DateTime.now();
           notifyListeners(); // Update UI with new backup time
+        } else {
+          print('⚠️ Auto-backup to Google Drive failed after retry');
         }
       } catch (e) {
-        print('Failed to backup to Google Drive: $e');
+        print('❌ Failed to backup to Google Drive: $e');
       }
     }
   }
@@ -376,7 +439,16 @@ class ExpenseProvider with ChangeNotifier {
       print(
           '✅ Cloud operations completed (${stopwatch.elapsedMilliseconds}ms)');
 
-      // Step 3: Immediate UI updates
+      // Step 3: Ensure Google Drive is ready for future backups
+      if (driveDeleteSuccess) {
+        // Prepare Google Drive for new backups after deletion
+        _driveService.ensureDriveReadyAfterDeletion().catchError((e) {
+          print('Failed to prepare Drive for future backups: $e');
+          return false;
+        });
+      }
+
+      // Step 4: Immediate UI updates
       _lastBackupTime = null;
       loadExpenses(); // This will show empty list immediately
 
@@ -404,8 +476,22 @@ class ExpenseProvider with ChangeNotifier {
   Future<bool> backupToGoogleDrive() async {
     try {
       final monthlyBudget = HiveService.getMonthlyBudget();
-      final success = await _driveService.backupExpenses(_expenses,
+
+      // First attempt backup
+      bool success = await _driveService.backupExpenses(_expenses,
           monthlyBudget: monthlyBudget);
+
+      // If backup fails, try to ensure Drive is ready and retry once
+      if (!success) {
+        print(
+            '⚠️ Manual backup failed, ensuring Drive readiness and retrying...');
+        final driveReady = await _driveService.ensureDriveReadyAfterDeletion();
+        if (driveReady) {
+          success = await _driveService.backupExpenses(_expenses,
+              monthlyBudget: monthlyBudget);
+        }
+      }
+
       if (success) {
         _lastBackupTime = DateTime.now();
         notifyListeners(); // Update UI with new backup time
@@ -474,5 +560,37 @@ class ExpenseProvider with ChangeNotifier {
       'autoSync': _autoSync,
       'lastBackupTime': _lastBackupTime?.toString(),
     };
+  }
+
+  // Debug method to test Google Drive backup manually
+  Future<bool> testGoogleDriveBackup() async {
+    try {
+      print('🧪 [DEBUG] Testing Google Drive backup manually...');
+      print('🧪 [DEBUG] Current expenses count: ${_expenses.length}');
+      print('🧪 [DEBUG] Auto-sync enabled: $_autoSync');
+      print('🧪 [DEBUG] User email: ${_authService.getUserEmail()}');
+      print('🧪 [DEBUG] User ID: ${_authService.getUserId()}');
+
+      final monthlyBudget = HiveService.getMonthlyBudget();
+      print('🧪 [DEBUG] Monthly budget: $monthlyBudget');
+
+      // Try direct backup
+      final success = await _driveService.backupExpenses(_expenses,
+          monthlyBudget: monthlyBudget);
+
+      if (success) {
+        print('✅ [DEBUG] Manual backup test successful!');
+        _lastBackupTime = DateTime.now();
+        notifyListeners();
+      } else {
+        print('❌ [DEBUG] Manual backup test failed!');
+      }
+
+      return success;
+    } catch (e, stackTrace) {
+      print('❌ [DEBUG] Manual backup test error: $e');
+      print('❌ [DEBUG] Stack trace: $stackTrace');
+      return false;
+    }
   }
 }

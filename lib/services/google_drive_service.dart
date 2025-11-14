@@ -15,20 +15,29 @@ class GoogleDriveService {
   Future<drive.DriveApi?> _getDriveApi() async {
     try {
       // Get existing account using lightweight authentication (no prompts)
-      print('Getting Google account for Drive API...');
+      print('🔐 [DEBUG] Getting Google account for Drive API...');
+      print('🔐 [DEBUG] Current user ID: ${_authService.getUserId()}');
+      print('🔐 [DEBUG] Current user email: ${_authService.getUserEmail()}');
+
       GoogleSignInAccount? account =
           await _authService.getGoogleSignInAccount();
 
       // If no account, user needs to sign in first
       if (account == null) {
-        print('❌ No Google account available - user needs to sign in first');
+        print(
+            '❌ [DEBUG] No Google account available - user needs to sign in first');
+        print(
+            '❌ [DEBUG] Firebase user exists: ${_authService.currentUser != null}');
         return null;
       }
 
-      print('✅ Using Google account: ${account.email}');
+      print('✅ [DEBUG] Using Google account: ${account.email}');
+      print('✅ [DEBUG] Account display name: ${account.displayName}');
+      print('✅ [DEBUG] Account ID: ${account.id}');
 
       // Get authorization headers for Drive API
       // Set promptIfNecessary to false to prevent repeated account picker dialogs
+      print('🔐 [DEBUG] Requesting authorization headers...');
       final authHeaders =
           await account.authorizationClient.authorizationHeaders([
         'https://www.googleapis.com/auth/drive.file',
@@ -37,46 +46,89 @@ class GoogleDriveService {
 
       if (authHeaders == null) {
         print(
-            'Failed to get authorization headers - user may need to re-authenticate');
+            '❌ [DEBUG] Failed to get authorization headers - user may need to re-authenticate');
         return null;
       }
 
-      print('Got authorization headers, creating Drive API client...');
+      print('✅ [DEBUG] Got authorization headers: ${authHeaders.keys}');
+      print('✅ [DEBUG] Creating Drive API client...');
       final authenticateClient = GoogleAuthClient(authHeaders);
       final driveApi = drive.DriveApi(authenticateClient);
 
-      print('✅ Drive API authenticated successfully for: ${account.email}');
+      // Test the API connection
+      print('🧪 [DEBUG] Testing Drive API connection...');
+      try {
+        await driveApi.about.get($fields: 'user');
+        print('✅ [DEBUG] Drive API connection test successful');
+      } catch (testError) {
+        print('❌ [DEBUG] Drive API connection test failed: $testError');
+        return null;
+      }
+
+      print(
+          '✅ [DEBUG] Drive API authenticated successfully for: ${account.email}');
       return driveApi;
     } catch (e, stackTrace) {
-      print('❌ Error getting Drive API: $e');
-      print('Stack trace: $stackTrace');
-      rethrow;
+      print('❌ [DEBUG] Error getting Drive API: $e');
+      print('❌ [DEBUG] Stack trace: $stackTrace');
+      return null;
     }
   }
 
   // Find or create app folder
   Future<String?> _getOrCreateAppFolder(drive.DriveApi driveApi) async {
     try {
+      print('📁 [FOLDER] Searching for existing app folder: "$appFolderName"');
+
       // Search for existing folder
       final fileList = await driveApi.files.list(
         q: "name='$appFolderName' and mimeType='application/vnd.google-apps.folder' and trashed=false",
         spaces: 'drive',
-        $fields: 'files(id, name)',
+        $fields: 'files(id, name, parents)',
       );
 
+      print(
+          '📁 [FOLDER] Search result: ${fileList.files?.length ?? 0} folders found');
+
       if (fileList.files != null && fileList.files!.isNotEmpty) {
-        return fileList.files!.first.id;
+        final existingFolder = fileList.files!.first;
+        print(
+            '📁 [FOLDER] Using existing folder: ID=${existingFolder.id}, Name=${existingFolder.name}');
+        print('📁 [FOLDER] Folder parents: ${existingFolder.parents}');
+        return existingFolder.id;
       }
 
       // Create new folder
+      print('📁 [FOLDER] Creating new app folder: "$appFolderName"');
       final folder = drive.File();
       folder.name = appFolderName;
       folder.mimeType = 'application/vnd.google-apps.folder';
+      // Don't set parents - let it be created in root
 
       final createdFolder = await driveApi.files.create(folder);
+      print(
+          '📁 [FOLDER] Created new folder: ID=${createdFolder.id}, Name=${createdFolder.name}');
+
+      // Verify the folder was created
+      final verifyList = await driveApi.files.list(
+        q: "id='${createdFolder.id}'",
+        spaces: 'drive',
+        $fields: 'files(id, name, mimeType, parents)',
+      );
+
+      if (verifyList.files != null && verifyList.files!.isNotEmpty) {
+        final verifiedFolder = verifyList.files!.first;
+        print(
+            '📁 [FOLDER] Verification successful: ${verifiedFolder.name} (${verifiedFolder.mimeType})');
+      } else {
+        print(
+            '❌ [FOLDER] Verification failed - folder not found after creation!');
+      }
+
       return createdFolder.id;
-    } catch (e) {
-      print('Error creating/finding app folder: $e');
+    } catch (e, stackTrace) {
+      print('❌ [FOLDER] Error creating/finding app folder: $e');
+      print('❌ [FOLDER] Stack trace: $stackTrace');
       return null;
     }
   }
@@ -85,21 +137,26 @@ class GoogleDriveService {
   Future<bool> backupExpenses(List<Expense> expenses,
       {double? monthlyBudget}) async {
     try {
-      print('Starting Google Drive backup for ${expenses.length} expenses...');
+      print(
+          '💾 [BACKUP] Starting Google Drive backup for ${expenses.length} expenses...');
+      print('💾 [BACKUP] User ID: ${_authService.getUserId()}');
+      print('💾 [BACKUP] User email: ${_authService.getUserEmail()}');
+      print('💾 [BACKUP] Monthly budget: $monthlyBudget');
 
       final driveApi = await _getDriveApi();
       if (driveApi == null) {
-        print('Failed to get Drive API - user might not be signed in');
+        print(
+            '❌ [BACKUP] Failed to get Drive API - user might not be signed in');
         return false;
       }
 
-      print('Getting or creating app folder...');
+      print('📁 [BACKUP] Getting or creating app folder...');
       final folderId = await _getOrCreateAppFolder(driveApi);
       if (folderId == null) {
-        print('Failed to get/create folder');
+        print('❌ [BACKUP] Failed to get/create folder');
         return false;
       }
-      print('Folder ID: $folderId');
+      print('📁 [BACKUP] Folder ID: $folderId');
 
       // Prepare backup data
       final backupData = {
@@ -112,14 +169,16 @@ class GoogleDriveService {
       };
 
       final jsonData = jsonEncode(backupData);
-      print('Backup data size: ${jsonData.length} bytes');
+      print('📄 [BACKUP] Backup data size: ${jsonData.length} bytes');
+      print(
+          '📄 [BACKUP] First 100 chars of JSON: ${jsonData.length > 100 ? jsonData.substring(0, 100) + "..." : jsonData}');
 
       final media = drive.Media(
         Stream.value(utf8.encode(jsonData)),
         jsonData.length,
       );
 
-      print('Checking for existing backup file...');
+      print('🔍 [BACKUP] Checking for existing backup file...');
       // Check if backup file exists
       final existingFiles = await driveApi.files.list(
         q: "name='$backupFileName' and '$folderId' in parents and trashed=false",
@@ -127,35 +186,67 @@ class GoogleDriveService {
         $fields: 'files(id, name)',
       );
 
+      print(
+          '🔍 [BACKUP] Found ${existingFiles.files?.length ?? 0} existing files');
+
       if (existingFiles.files != null && existingFiles.files!.isNotEmpty) {
         // Update existing file
-        print('Updating existing backup file...');
+        print('📝 [BACKUP] Updating existing backup file...');
         final fileId = existingFiles.files!.first.id!;
-        await driveApi.files.update(
+        print('📝 [BACKUP] File ID to update: $fileId');
+
+        final updatedFile = await driveApi.files.update(
           drive.File(),
           fileId,
           uploadMedia: media,
         );
-        print('✅ Backup updated successfully!');
+
+        print(
+            '✅ [BACKUP] Backup updated successfully! New file ID: ${updatedFile.id}');
       } else {
         // Create new backup file
-        print('Creating new backup file...');
+        print('📝 [BACKUP] Creating new backup file...');
         final file = drive.File();
         file.name = backupFileName;
         file.parents = [folderId];
         file.mimeType = 'application/json';
 
-        await driveApi.files.create(
+        print(
+            '📝 [BACKUP] File metadata: name=$backupFileName, parent=$folderId, mimeType=application/json');
+
+        final createdFile = await driveApi.files.create(
           file,
           uploadMedia: media,
         );
-        print('✅ Backup created successfully!');
+
+        print(
+            '✅ [BACKUP] Backup created successfully! New file ID: ${createdFile.id}');
+      }
+
+      // Verify the backup was created/updated
+      print('🔍 [BACKUP] Verifying backup...');
+      final verifyFiles = await driveApi.files.list(
+        q: "name='$backupFileName' and '$folderId' in parents and trashed=false",
+        spaces: 'drive',
+        $fields: 'files(id, name, size, modifiedTime)',
+      );
+
+      if (verifyFiles.files != null && verifyFiles.files!.isNotEmpty) {
+        final backupFile = verifyFiles.files!.first;
+        print('✅ [BACKUP] Verification successful!');
+        print('✅ [BACKUP] File name: ${backupFile.name}');
+        print('✅ [BACKUP] File ID: ${backupFile.id}');
+        print('✅ [BACKUP] File size: ${backupFile.size}');
+        print('✅ [BACKUP] Modified time: ${backupFile.modifiedTime}');
+      } else {
+        print('❌ [BACKUP] Verification failed - backup file not found!');
+        return false;
       }
 
       return true;
     } catch (e, stackTrace) {
-      print('❌ Error backing up to Google Drive: $e');
-      print('Stack trace: $stackTrace');
+      print('❌ [BACKUP] Error backing up to Google Drive: $e');
+      print('❌ [BACKUP] Stack trace: $stackTrace');
       return false;
     }
   }
@@ -328,6 +419,71 @@ class GoogleDriveService {
     } catch (e, stackTrace) {
       print('❌ Error in FAST Google Drive deletion: $e');
       print('Stack trace: $stackTrace');
+      return false;
+    }
+  }
+
+  // Ensure Google Drive is ready for new backups after data deletion
+  Future<bool> ensureDriveReadyAfterDeletion() async {
+    try {
+      print('🔄 Ensuring Google Drive is ready for new backups...');
+
+      // Refresh Google authentication to ensure valid credentials
+      final authRefreshed = await _authService.refreshGoogleAuthentication();
+      if (!authRefreshed) {
+        print('❌ Failed to refresh Google authentication');
+        return false;
+      }
+
+      // Test Drive API access with refreshed authentication
+      final driveApi = await _getDriveApi();
+      if (driveApi == null) {
+        print('❌ Drive API not available after authentication refresh');
+        return false;
+      }
+
+      // Ensure app folder exists
+      final folderId = await _getOrCreateAppFolder(driveApi);
+      if (folderId == null) {
+        print('❌ Failed to ensure app folder exists');
+        return false;
+      }
+
+      print('✅ Google Drive is ready for new backups (Folder ID: $folderId)');
+      return true;
+    } catch (e) {
+      print('❌ Error ensuring Drive readiness: $e');
+      return false;
+    }
+  }
+
+  // Debug method to test Drive API connection
+  Future<bool> testDriveConnection() async {
+    try {
+      print('🧪 [DEBUG] Testing Google Drive API connection...');
+
+      final driveApi = await _getDriveApi();
+      if (driveApi == null) {
+        print('❌ [DEBUG] Failed to get Drive API');
+        return false;
+      }
+
+      print('🧪 [DEBUG] Drive API obtained successfully');
+
+      // Test basic API call
+      try {
+        final about = await driveApi.about.get($fields: 'user');
+        print('✅ [DEBUG] Drive API test successful');
+        print(
+            '✅ [DEBUG] User: ${about.user?.displayName} (${about.user?.emailAddress})');
+        return true;
+      } catch (apiError) {
+        print('❌ [DEBUG] Drive API test failed: $apiError');
+        return false;
+      }
+    } catch (e, stackTrace) {
+      print('❌ [DEBUG] Drive connection test error: $e');
+      print('❌ [DEBUG] Stack trace: $stackTrace');
       return false;
     }
   }
