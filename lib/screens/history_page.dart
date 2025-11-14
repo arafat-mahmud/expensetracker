@@ -18,6 +18,36 @@ class _HistoryPageState extends State<HistoryPage> {
   String _filterCategory = 'All';
   String _transactionType = 'All'; // 'All', 'Debit', 'Credit'
 
+  Future<void> _handleRefresh() async {
+    final expenseProvider =
+        Provider.of<ExpenseProvider>(context, listen: false);
+
+    // Reload local data
+    expenseProvider.loadExpenses();
+
+    // Try to restore from Google Drive
+    await expenseProvider.restoreFromGoogleDrive();
+
+    // Update last backup time
+    await expenseProvider.getLastBackupTime();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.refresh, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Transaction history refreshed'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final expenseProvider = Provider.of<ExpenseProvider>(context);
@@ -121,49 +151,64 @@ class _HistoryPageState extends State<HistoryPage> {
 
           // Transaction List
           Expanded(
-            child: expenses.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+            child: RefreshIndicator(
+              onRefresh: _handleRefresh,
+              child: expenses.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                        Icon(
-                          Icons.receipt_long,
-                          size: 80,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No expenses found',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Colors.grey,
-                                  ),
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.5,
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.receipt_long,
+                                  size: 80,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No expenses found',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        color: Colors.grey,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: expenses.length,
+                      itemBuilder: (context, index) {
+                        final expense = expenses[index];
+                        return ExpenseCard(
+                          expense: expense,
+                          onEdit: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => expense.isDebit
+                                    ? AddExpensePage(expense: expense)
+                                    : AddIncomePage(income: expense),
+                              ),
+                            );
+                          },
+                          onDelete: () {
+                            _showDeleteDialog(
+                                context, expense, expenseProvider);
+                          },
+                        );
+                      },
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: expenses.length,
-                    itemBuilder: (context, index) {
-                      final expense = expenses[index];
-                      return ExpenseCard(
-                        expense: expense,
-                        onEdit: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => expense.isDebit
-                                  ? AddExpensePage(expense: expense)
-                                  : AddIncomePage(income: expense),
-                            ),
-                          );
-                        },
-                        onDelete: () {
-                          _showDeleteDialog(context, expense, expenseProvider);
-                        },
-                      );
-                    },
-                  ),
+            ),
           ),
         ],
       ),

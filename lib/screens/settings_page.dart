@@ -15,6 +15,35 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  Future<void> _handleRefresh() async {
+    final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
+    final expenseProvider =
+        Provider.of<ExpenseProvider>(context, listen: false);
+
+    // Reload local data
+    budgetProvider.reloadBudget();
+    expenseProvider.loadExpenses();
+
+    // Update last backup time
+    await expenseProvider.getLastBackupTime();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.refresh, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Settings refreshed'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -35,141 +64,145 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // User Profile Section
-          if (authProvider.isAuthenticated)
-            Card(
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: authProvider.getUserPhotoURL() != null
-                      ? NetworkImage(authProvider.getUserPhotoURL()!)
-                      : null,
-                  child: authProvider.getUserPhotoURL() == null
-                      ? const Icon(Icons.person)
-                      : null,
-                ),
-                title: Text(
-                  authProvider.getUserDisplayName() ?? 'User',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(authProvider.getUserEmail() ?? ''),
-                trailing: IconButton(
-                  icon: const Icon(Icons.logout, color: Colors.red),
-                  onPressed: () => _showSignOutDialog(context, authProvider),
+      body: RefreshIndicator(
+        onRefresh: _handleRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: [
+            // User Profile Section
+            if (authProvider.isAuthenticated)
+              Card(
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage: authProvider.getUserPhotoURL() != null
+                        ? NetworkImage(authProvider.getUserPhotoURL()!)
+                        : null,
+                    child: authProvider.getUserPhotoURL() == null
+                        ? const Icon(Icons.person)
+                        : null,
+                  ),
+                  title: Text(
+                    authProvider.getUserDisplayName() ?? 'User',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(authProvider.getUserEmail() ?? ''),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.logout, color: Colors.red),
+                    onPressed: () => _showSignOutDialog(context, authProvider),
+                  ),
                 ),
               ),
-            ),
-          if (authProvider.isAuthenticated) const SizedBox(height: 16),
+            if (authProvider.isAuthenticated) const SizedBox(height: 16),
 
-          // Statement Section
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Download Statement'),
-              subtitle: const Text('Export transactions as PDF or CSV'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.pushNamed(context, '/statement');
-              },
+            // Statement Section
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.download),
+                title: const Text('Download Statement'),
+                subtitle: const Text('Export transactions as PDF or CSV'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pushNamed(context, '/statement');
+                },
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // Theme Section
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: Icon(
-                    themeProvider.isDarkMode
-                        ? Icons.dark_mode
-                        : Icons.light_mode,
+            // Theme Section
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: Icon(
+                      themeProvider.isDarkMode
+                          ? Icons.dark_mode
+                          : Icons.light_mode,
+                    ),
+                    title: const Text('Dark Mode'),
+                    trailing: Switch(
+                      value: themeProvider.isDarkMode,
+                      onChanged: (value) {
+                        themeProvider.toggleTheme();
+                      },
+                    ),
                   ),
-                  title: const Text('Dark Mode'),
-                  trailing: Switch(
-                    value: themeProvider.isDarkMode,
-                    onChanged: (value) {
-                      themeProvider.toggleTheme();
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Budget Section
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.account_balance_wallet),
+                    title: const Text('Monthly Budget'),
+                    subtitle: Text(
+                        '${budgetProvider.monthlyBudget.toStringAsFixed(0)}'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () {
+                        _showBudgetDialog(context, budgetProvider);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // App Info Section
+            Card(
+              child: Column(
+                children: [
+                  const ListTile(
+                    leading: Icon(Icons.info),
+                    title: Text('App Version'),
+                    subtitle: Text('1.0.0'),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.person),
+                    title: const Text('About the Developer'),
+                    subtitle: const Text('Developer information and contact'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DeveloperInfoScreen(),
+                        ),
+                      );
                     },
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // Budget Section
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.account_balance_wallet),
-                  title: const Text('Monthly Budget'),
-                  subtitle: Text(
-                      '${budgetProvider.monthlyBudget.toStringAsFixed(0)}'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () {
-                      _showBudgetDialog(context, budgetProvider);
+            // Data Management Section
+            Card(
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.delete_sweep, color: Colors.red),
+                    title: const Text(
+                      'Delete All Data',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    subtitle: const Text('Permanent deletion all history'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      _showClearDataDialog(context, expenseProvider);
                     },
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-
-          // App Info Section
-          Card(
-            child: Column(
-              children: [
-                const ListTile(
-                  leading: Icon(Icons.info),
-                  title: Text('App Version'),
-                  subtitle: Text('1.0.0'),
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.person),
-                  title: const Text('About the Developer'),
-                  subtitle: const Text('Developer information and contact'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DeveloperInfoScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Data Management Section
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.delete_sweep, color: Colors.red),
-                  title: const Text(
-                    'Delete All Data',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                  subtitle: const Text('Permanent deletion all history'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    _showClearDataDialog(context, expenseProvider);
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: _buildBottomNavBar(context),
     );

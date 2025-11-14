@@ -92,6 +92,39 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  Future<void> _handleRefresh() async {
+    final expenseProvider =
+        Provider.of<ExpenseProvider>(context, listen: false);
+    final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
+
+    // Reload local data
+    expenseProvider.loadExpenses();
+    budgetProvider.reloadBudget();
+
+    // Try to restore from Google Drive
+    await expenseProvider.restoreFromGoogleDrive();
+    budgetProvider.reloadBudget();
+
+    // Update last backup time
+    await expenseProvider.getLastBackupTime();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.refresh, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Data refreshed'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final expenseProvider = Provider.of<ExpenseProvider>(context);
@@ -145,115 +178,125 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Balance Summary Card
-            _buildBalanceCard(context, totalIncome, totalExpense, monthBalance),
-            const SizedBox(height: 20),
+      body: RefreshIndicator(
+        onRefresh: _handleRefresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Balance Summary Card
+              _buildBalanceCard(
+                  context, totalIncome, totalExpense, monthBalance),
+              const SizedBox(height: 20),
 
-            // Quick Action Buttons
-            _buildQuickActionButtons(context),
-            const SizedBox(height: 20),
+              // Quick Action Buttons
+              _buildQuickActionButtons(context),
+              const SizedBox(height: 20),
 
-            // Budget Progress Card
-            _buildBudgetCard(
-              context,
-              totalExpense,
-              budgetProvider.monthlyBudget,
-              budgetUsed,
-              remainingBudget,
-              isOverBudget,
-            ),
-            const SizedBox(height: 20),
+              // Budget Progress Card
+              _buildBudgetCard(
+                context,
+                totalExpense,
+                budgetProvider.monthlyBudget,
+                budgetUsed,
+                remainingBudget,
+                isOverBudget,
+              ),
+              const SizedBox(height: 20),
 
-            // Category Expense Summary
-            Text(
-              'Category Breakdown',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+              // Category Expense Summary
+              Text(
+                'Category Breakdown',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 16),
+              _buildCategoryCards(context, categoryExpense, expenseProvider),
+              const SizedBox(height: 20),
+
+              // Pie Chart
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Expense Distribution',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 250,
+                        child: categoryExpense.isEmpty
+                            ? const Center(
+                                child: Text('No expenses this month'))
+                            : CategoryPieChart(
+                                categoryExpense: categoryExpense),
+                      ),
+                    ],
                   ),
-            ),
-            const SizedBox(height: 16),
-            _buildCategoryCards(context, categoryExpense, expenseProvider),
-            const SizedBox(height: 20),
+                ),
+              ),
+              const SizedBox(height: 20),
 
-            // Pie Chart
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Expense Distribution',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
+              // Daily Trend Bar Chart
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Daily Expense Trend',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 250,
-                      child: categoryExpense.isEmpty
-                          ? const Center(child: Text('No expenses this month'))
-                          : CategoryPieChart(categoryExpense: categoryExpense),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Daily Trend Bar Chart
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Daily Expense Trend',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const DailyExpenseTrendPage(),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const DailyExpenseTrendPage(),
+                                ),
+                              );
+                            },
+                            child: const Text('View'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 200,
+                        child: dailyExpense.isEmpty
+                            ? const Center(
+                                child: Text('No expenses in the last 7 days'))
+                            : DailyBarChart(
+                                dailyExpense: expenseProvider
+                                    .getDailyExpenseForLastNDays(7),
+                                days: 7,
                               ),
-                            );
-                          },
-                          child: const Text('View'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 200,
-                      child: dailyExpense.isEmpty
-                          ? const Center(
-                              child: Text('No expenses in the last 7 days'))
-                          : DailyBarChart(
-                              dailyExpense: expenseProvider
-                                  .getDailyExpenseForLastNDays(7),
-                              days: 7,
-                            ),
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: _buildBottomNavBar(context),
