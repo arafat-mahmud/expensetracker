@@ -39,6 +39,13 @@ class BudgetProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Public method to reload budget (e.g., after data restore)
+  void reloadBudget() {
+    print('🔄 BudgetProvider: Reloading budget from Hive...');
+    _loadBudget();
+    print('✅ BudgetProvider: Budget reloaded: $_monthlyBudget');
+  }
+
   Future<void> setMonthlyBudget(double budget) async {
     _monthlyBudget = budget;
     await HiveService.setMonthlyBudget(budget);

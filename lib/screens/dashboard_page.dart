@@ -60,6 +60,11 @@ class _DashboardPageState extends State<DashboardPage> {
           Provider.of<ExpenseProvider>(context, listen: false);
       expenseProvider.reloadForNewUser();
 
+      // Reload budget for the new user
+      final budgetProvider =
+          Provider.of<BudgetProvider>(context, listen: false);
+      budgetProvider.reloadBudget();
+
       // Trigger background restore for the new user
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _performBackgroundRestore();

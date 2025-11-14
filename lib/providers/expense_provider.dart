@@ -504,6 +504,7 @@ class ExpenseProvider with ChangeNotifier {
   }
 
   // Restore from Google Drive (automatic restore after sign-in)
+  // Note: After calling this, you should call budgetProvider.reloadBudget() to update the UI
   Future<bool> restoreFromGoogleDrive() async {
     try {
       final restoreData = await _driveService.restoreExpenses();
@@ -528,6 +529,7 @@ class ExpenseProvider with ChangeNotifier {
         if (monthlyBudget != null) {
           await HiveService.setMonthlyBudget(monthlyBudget);
           print('✅ Monthly budget restored: $monthlyBudget');
+          // Note: BudgetProvider needs to reload to see this change
         }
 
         return true;

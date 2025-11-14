@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
+import '../providers/budget_provider.dart';
 
 // Background restore handler that doesn't block the UI
 class BackgroundRestoreHandler {
@@ -24,6 +25,8 @@ class BackgroundRestoreHandler {
     try {
       final expenseProvider =
           Provider.of<ExpenseProvider>(context, listen: false);
+      final budgetProvider =
+          Provider.of<BudgetProvider>(context, listen: false);
 
       // Check if there's any local data - if not, try to restore from Google Drive
       if (expenseProvider.expenses.isEmpty) {
@@ -32,34 +35,39 @@ class BackgroundRestoreHandler {
 
         final success = await expenseProvider.restoreFromGoogleDrive();
 
-        if (success && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.cloud_download, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Welcome back! Your data has been restored (${expenseProvider.expenses.length} items)',
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 2,
+        if (success) {
+          // Reload budget after restore to update UI
+          budgetProvider.reloadBudget();
+
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.cloud_download, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Welcome back! Your data has been restored (${expenseProvider.expenses.length} items)',
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 4),
+                behavior: SnackBarBehavior.floating,
+                action: SnackBarAction(
+                  label: 'OK',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  },
+                ),
               ),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 4),
-              behavior: SnackBarBehavior.floating,
-              action: SnackBarAction(
-                label: 'OK',
-                textColor: Colors.white,
-                onPressed: () {
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                },
-              ),
-            ),
-          );
+            );
+          }
         } else if (context.mounted) {
           print('ℹ️ No backup found or restore failed - starting fresh');
         }
