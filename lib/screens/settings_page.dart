@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/theme_provider.dart';
 import '../providers/budget_provider.dart';
@@ -63,54 +62,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           if (authProvider.isAuthenticated) const SizedBox(height: 16),
-
-          // Cloud Sync Section (Only if authenticated)
-          if (authProvider.isAuthenticated) ...[
-            Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.cloud_sync),
-                    title: const Text('Auto Backup'),
-                    subtitle: const Text(
-                        'Automatically backup expenses to Google Drive'),
-                    trailing: Switch(
-                      value: expenseProvider.autoSync,
-                      onChanged: (value) {
-                        expenseProvider.toggleAutoSync(value);
-                      },
-                    ),
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.backup),
-                    title: const Text('Backup to Google Drive'),
-                    subtitle: expenseProvider.lastBackupTime != null
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                  'Last backup: ${DateFormat('MMM dd, yyyy hh:mm a').format(expenseProvider.lastBackupTime!)}'),
-                              if (expenseProvider.autoSync)
-                                const Text(
-                                  'Auto-backup enabled',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.green,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                            ],
-                          )
-                        : const Text('Backup all data to Google Drive'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _backupToGoogleDrive(context, expenseProvider),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
 
           // Statement Section
           Card(
@@ -258,62 +209,6 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
-  }
-
-  Future<void> _backupToGoogleDrive(
-      BuildContext context, ExpenseProvider expenseProvider) async {
-    if (!mounted) return;
-
-    // Show instant feedback
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            ),
-            SizedBox(width: 12),
-            Text('Backing up to Google Drive...'),
-          ],
-        ),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-
-    // Backup in background - provider will update lastBackupTime automatically
-    final success = await expenseProvider.backupToGoogleDrive();
-
-    if (!mounted) return;
-
-    if (mounted && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                success ? Icons.check_circle : Icons.error,
-                color: Colors.white,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                success
-                    ? 'Backup completed successfully!'
-                    : 'Backup failed. Try again.',
-              ),
-            ],
-          ),
-          backgroundColor: success ? Colors.green : Colors.red,
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
   }
 
   void _showBudgetDialog(BuildContext context, BudgetProvider budgetProvider) {

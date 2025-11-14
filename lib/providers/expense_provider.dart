@@ -7,7 +7,7 @@ import '../services/auth_service.dart';
 class ExpenseProvider with ChangeNotifier {
   List<Expense> _expenses = [];
   DateTime _selectedMonth = DateTime.now();
-  bool _autoSync = true; // Auto-backup to Google Drive
+  final bool _autoSync = true; // Always auto-backup to Google Drive
   DateTime? _lastBackupTime; // Track last backup time
   final GoogleDriveService _driveService = GoogleDriveService();
   final AuthService _authService = AuthService();
@@ -15,7 +15,6 @@ class ExpenseProvider with ChangeNotifier {
 
   List<Expense> get expenses => _expenses;
   DateTime get selectedMonth => _selectedMonth;
-  bool get autoSync => _autoSync;
   DateTime? get lastBackupTime => _lastBackupTime;
 
   // Get only debit transactions (expenses)
@@ -397,12 +396,6 @@ class ExpenseProvider with ChangeNotifier {
       print('❌ Error during FAST permanent deletion: $e');
       return false;
     }
-  }
-
-  // Toggle auto-sync
-  void toggleAutoSync(bool value) {
-    _autoSync = value;
-    notifyListeners();
   }
 
   // Note: Firestore is only used for authentication, not for expense data storage
