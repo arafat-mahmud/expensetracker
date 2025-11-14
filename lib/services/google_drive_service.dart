@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import '../models/expense_model.dart';
 import 'auth_service.dart';
 
@@ -35,25 +36,31 @@ class GoogleDriveService {
       print('✅ [DEBUG] Account display name: ${account.displayName}');
       print('✅ [DEBUG] Account ID: ${account.id}');
 
-      // Get authorization headers for Drive API
-      // Set promptIfNecessary to false to prevent repeated account picker dialogs
-      print('🔐 [DEBUG] Requesting authorization headers...');
-      final authHeaders =
-          await account.authorizationClient.authorizationHeaders([
+      // Get authorization for Drive API scopes silently (no user prompts)
+      print('🔐 [DEBUG] Requesting authorization silently (no account picker)...');
+      final authorization = await account.authorizationClient.authorizationForScopes([
         'https://www.googleapis.com/auth/drive.file',
         'https://www.googleapis.com/auth/drive.appdata',
-      ], promptIfNecessary: false);
+      ]);
 
-      if (authHeaders == null) {
+      if (authorization == null) {
         print(
-            '❌ [DEBUG] Failed to get authorization headers - user may need to re-authenticate');
+            '❌ [DEBUG] Failed to get authorization silently - user may need to re-authenticate');
         return null;
       }
 
-      print('✅ [DEBUG] Got authorization headers: ${authHeaders.keys}');
-      print('✅ [DEBUG] Creating Drive API client...');
-      final authenticateClient = GoogleAuthClient(authHeaders);
-      final driveApi = drive.DriveApi(authenticateClient);
+      print('✅ [DEBUG] Got authorization silently');
+      print('✅ [DEBUG] Creating Drive API client using authorized client...');
+      
+      // Use the extension method to create an authenticated HTTP client
+      final authenticatedClient = authorization.authClient(
+        scopes: [
+          'https://www.googleapis.com/auth/drive.file',
+          'https://www.googleapis.com/auth/drive.appdata',
+        ],
+      );
+      
+      final driveApi = drive.DriveApi(authenticatedClient);
 
       // Test the API connection
       print('🧪 [DEBUG] Testing Drive API connection...');
