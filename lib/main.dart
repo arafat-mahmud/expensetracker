@@ -80,11 +80,11 @@ class ExpenseTrackerApp extends StatelessWidget {
                 ),
                 themeMode:
                     themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-                home: authProvider.isAuthenticated
-                    ? const DashboardPage()
-                    : const LoginPage(),
+                initialRoute: '/',
                 routes: {
-                  '/': (context) => const DashboardPage(),
+                  '/': (context) => authProvider.isAuthenticated
+                      ? const DashboardPage()
+                      : const LoginPage(),
                   '/history': (context) => const HistoryPage(),
                   '/settings': (context) => const SettingsPage(),
                   '/statement': (context) => const StatementPage(),
