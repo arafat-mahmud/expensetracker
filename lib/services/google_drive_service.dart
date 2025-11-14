@@ -37,8 +37,10 @@ class GoogleDriveService {
       print('✅ [DEBUG] Account ID: ${account.id}');
 
       // Get authorization for Drive API scopes silently (no user prompts)
-      print('🔐 [DEBUG] Requesting authorization silently (no account picker)...');
-      final authorization = await account.authorizationClient.authorizationForScopes([
+      print(
+          '🔐 [DEBUG] Requesting authorization silently (no account picker)...');
+      final authorization =
+          await account.authorizationClient.authorizationForScopes([
         'https://www.googleapis.com/auth/drive.file',
         'https://www.googleapis.com/auth/drive.appdata',
       ]);
@@ -51,7 +53,7 @@ class GoogleDriveService {
 
       print('✅ [DEBUG] Got authorization silently');
       print('✅ [DEBUG] Creating Drive API client using authorized client...');
-      
+
       // Use the extension method to create an authenticated HTTP client
       final authenticatedClient = authorization.authClient(
         scopes: [
@@ -59,7 +61,7 @@ class GoogleDriveService {
           'https://www.googleapis.com/auth/drive.appdata',
         ],
       );
-      
+
       final driveApi = drive.DriveApi(authenticatedClient);
 
       // Test the API connection
