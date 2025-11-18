@@ -88,6 +88,7 @@ class ExpenseCategory {
 
   // 🍽️ Daily Living
   static const String food = 'Food / Restaurant';
+  static const String vegetable = 'Vegetable';
   static const String snacks = 'Snacks';
   static const String laundry = 'Laundry / Cleaning';
 
@@ -142,6 +143,7 @@ class ExpenseCategory {
         // 🍽️ Daily Living
         grocery,
         food,
+        vegetable,
         snacks,
         laundry,
 
@@ -210,6 +212,8 @@ class ExpenseCategory {
         return '🛒';
       case food:
         return '🍔';
+      case vegetable:
+        return '🥬';
       case snacks:
         return '☕';
       case laundry:
@@ -309,6 +313,8 @@ class ExpenseCategory {
         return {'color': 0xFF81C784}; // Green
       case food:
         return {'color': 0xFFFF8A65}; // Orange
+      case vegetable:
+        return {'color': 0xFF66BB6A}; // Light Green
       case snacks:
         return {'color': 0xFFD4E157}; // Lime
       case laundry:
@@ -400,6 +406,7 @@ class ExpenseCategory {
         '🍽️ Daily Living': [
           grocery,
           food,
+          vegetable,
           snacks,
           laundry,
         ],

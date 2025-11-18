@@ -45,15 +45,23 @@ class _DeveloperInfoScreenState extends State<DeveloperInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'About the Developer',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black,
+          ),
         ),
         centerTitle: true,
         elevation: 0,
+        iconTheme: IconThemeData(
+          color: isDark ? Colors.white : Colors.black,
+        ),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -78,7 +86,10 @@ class _DeveloperInfoScreenState extends State<DeveloperInfoScreen> {
                           child: Icon(
                             Icons.person,
                             size: isSmallScreen ? 40 : 50,
-                            color: Colors.grey,
+                            color: Theme.of(context)
+                                .iconTheme
+                                .color
+                                ?.withOpacity(0.5),
                           ),
                         ),
                         SizedBox(height: isSmallScreen ? 10 : 15),
@@ -87,13 +98,24 @@ class _DeveloperInfoScreenState extends State<DeveloperInfoScreen> {
                           style: TextStyle(
                             fontSize: isSmallScreen ? 20 : 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.indigo,
+                            color: isDark
+                                ? Colors.white
+                                : Theme.of(context).primaryColor,
                           ),
                         ),
                         const SizedBox(height: 5),
-                        const Text(
+                        Text(
                           'Software Developer',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? Colors.white70
+                                : Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.color
+                                    ?.withOpacity(0.6),
+                          ),
                         ),
                         SizedBox(height: isSmallScreen ? 15 : 20),
                         _buildInfoCard(
@@ -126,7 +148,11 @@ class _DeveloperInfoScreenState extends State<DeveloperInfoScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: isSmallScreen ? 9 : 10,
-                    color: Colors.grey[600],
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.color
+                        ?.withOpacity(0.6),
                   ),
                 ),
               ),
@@ -220,20 +246,25 @@ class _DeveloperInfoScreenState extends State<DeveloperInfoScreen> {
     double titleFontSize = 15,
     double subtitleFontSize = 15,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.indigo),
-      title: Text(
-        title,
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: titleFontSize),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(
-          fontSize: subtitleFontSize,
-        ),
-      ),
-      onTap: onTap,
-      contentPadding: EdgeInsets.zero,
+    return Builder(
+      builder: (context) {
+        return ListTile(
+          leading: Icon(icon, color: Theme.of(context).primaryColor),
+          title: Text(
+            title,
+            style:
+                TextStyle(fontWeight: FontWeight.bold, fontSize: titleFontSize),
+          ),
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: subtitleFontSize,
+            ),
+          ),
+          onTap: onTap,
+          contentPadding: EdgeInsets.zero,
+        );
+      },
     );
   }
 }
