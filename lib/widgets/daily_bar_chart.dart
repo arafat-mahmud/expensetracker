@@ -63,7 +63,8 @@ class DailyBarChart extends StatelessWidget {
               getTitlesWidget: (value, meta) {
                 if (days <= 7) {
                   final today = DateTime.now();
-                  final day = today.subtract(Duration(days: days - value.toInt()));
+                  final day =
+                      today.subtract(Duration(days: days - value.toInt()));
                   return Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Text(
