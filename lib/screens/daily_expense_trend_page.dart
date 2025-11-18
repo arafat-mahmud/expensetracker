@@ -17,10 +17,20 @@ class _DailyExpenseTrendPageState extends State<DailyExpenseTrendPage> {
   Widget build(BuildContext context) {
     final expenseProvider = Provider.of<ExpenseProvider>(context);
     final dailyExpense = expenseProvider.getDailyExpenseForLastNDays(_days);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Daily Expense Trend'),
+        title: Text(
+          'Daily Expense Trend',
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        iconTheme: IconThemeData(
+          color: isDark ? Colors.white : Colors.black,
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

@@ -19,6 +19,9 @@ class DailyBarChart extends StatelessWidget {
       );
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.grey[400] : Colors.grey[700];
+
     final maxY = dailyExpense.values
         .fold(0.0, (max, value) => value > max ? value : max);
 
@@ -72,7 +75,7 @@ class DailyBarChart extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
-                        color: Colors.grey[600],
+                        color: textColor,
                       ),
                     ),
                   );
@@ -85,7 +88,7 @@ class DailyBarChart extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: Colors.grey[600],
+                          color: textColor,
                         ),
                       ),
                     );
@@ -99,7 +102,7 @@ class DailyBarChart extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: Colors.grey[600],
+                          color: textColor,
                         ),
                       ),
                     );
@@ -122,7 +125,7 @@ class DailyBarChart extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
-                        color: Colors.grey[600],
+                        color: textColor,
                       ),
                     ),
                   );
@@ -134,7 +137,7 @@ class DailyBarChart extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
+                      color: textColor,
                     ),
                   ),
                 );
@@ -155,7 +158,9 @@ class DailyBarChart extends StatelessWidget {
           horizontalInterval: scaledMaxY / 5,
           getDrawingHorizontalLine: (value) {
             return FlLine(
-              color: Colors.grey.withOpacity(0.15),
+              color: isDark
+                  ? Colors.grey.withOpacity(0.15)
+                  : Colors.grey.withOpacity(0.2),
               strokeWidth: 1,
             );
           },
