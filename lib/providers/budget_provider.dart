@@ -2,11 +2,15 @@ import 'package:flutter/foundation.dart';
 import '../services/hive_service.dart';
 import '../services/auth_service.dart';
 import '../services/google_drive_service.dart';
+import '../services/firestore_service.dart';
 
 class BudgetProvider with ChangeNotifier {
   double _monthlyBudget = 10000.0;
   final AuthService _authService = AuthService();
-  final GoogleDriveService _driveService = GoogleDriveService();
+  final GoogleDriveService _driveService =
+      GoogleDriveService(); // Keep for reference
+  final FirestoreService _firestoreService =
+      FirestoreService(); // NEW: Firestore service
   String? _currentUserId;
 
   double get monthlyBudget => _monthlyBudget;
@@ -51,13 +55,13 @@ class BudgetProvider with ChangeNotifier {
     await HiveService.setMonthlyBudget(budget);
     notifyListeners();
 
-    // Backup to Google Drive immediately
+    // Backup to Firestore immediately (was Google Drive)
     try {
       final expenses = HiveService.getAllExpenses();
-      await _driveService.backupExpenses(expenses, monthlyBudget: budget);
-      print('✅ Budget backed up to Google Drive: $budget');
+      await _firestoreService.backupExpenses(expenses, monthlyBudget: budget);
+      print('✅ Budget backed up to Firestore: $budget');
     } catch (e) {
-      print('⚠️ Failed to backup budget to Drive: $e');
+      print('⚠️ Failed to backup budget to Firestore: $e');
     }
   }
 

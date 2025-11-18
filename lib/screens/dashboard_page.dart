@@ -101,8 +101,8 @@ class _DashboardPageState extends State<DashboardPage> {
     expenseProvider.loadExpenses();
     budgetProvider.reloadBudget();
 
-    // Try to restore from Google Drive
-    await expenseProvider.restoreFromGoogleDrive();
+    // Try to restore from Firestore (was Google Drive)
+    await expenseProvider.restoreFromFirestore();
     budgetProvider.reloadBudget();
 
     // Update last backup time

@@ -367,7 +367,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         style: TextStyle(fontSize: 11),
                       ),
                       Text(
-                        '• Delete ALL backups from Google Drive',
+                        '• Delete ALL backups from Firestore Cloud',
                         style: TextStyle(fontSize: 11),
                       ),
                       Text(
@@ -680,7 +680,7 @@ class _DeletionProgressDialogState extends State<_DeletionProgressDialog>
                 child: Text(
                   success
                       ? 'All data permanently deleted! No recovery possible.'
-                      : 'Local data deleted but Google Drive backups may still exist. Try again or check your internet connection.',
+                      : 'Local data deleted but Firestore backups may still exist. Try again or check your internet connection.',
                 ),
               ),
             ],

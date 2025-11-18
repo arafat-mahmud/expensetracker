@@ -2,14 +2,19 @@ import 'package:flutter/foundation.dart';
 import '../models/expense_model.dart';
 import '../services/hive_service.dart';
 import '../services/google_drive_service.dart';
+import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
 
 class ExpenseProvider with ChangeNotifier {
   List<Expense> _expenses = [];
   DateTime _selectedMonth = DateTime.now();
-  final bool _autoSync = true; // Always auto-backup to Google Drive
+  final bool _autoSync =
+      true; // Always auto-backup to Firestore (was Google Drive)
   DateTime? _lastBackupTime; // Track last backup time
-  final GoogleDriveService _driveService = GoogleDriveService();
+  final GoogleDriveService _driveService =
+      GoogleDriveService(); // Keep for reference
+  final FirestoreService _firestoreService =
+      FirestoreService(); // NEW: Firestore service
   final AuthService _authService = AuthService();
   String? _currentUserId; // Track current user to detect switches
 
@@ -76,14 +81,14 @@ class ExpenseProvider with ChangeNotifier {
     loadExpenses();
     await _loadLastBackupTime();
 
-    // Try to restore from Google Drive backup for new user
+    // Try to restore from Firestore backup for new user (was Google Drive)
     if (_expenses.isEmpty) {
-      print('No local data found, attempting Google Drive restore...');
-      final restored = await restoreFromGoogleDrive();
+      print('No local data found, attempting Firestore restore...');
+      final restored = await restoreFromFirestore();
       if (restored) {
-        print('✅ Data restored from Google Drive backup');
+        print('✅ Data restored from Firestore backup');
       } else {
-        print('No Google Drive backup found for this user');
+        print('No Firestore backup found for this user');
       }
     }
 
@@ -94,7 +99,8 @@ class ExpenseProvider with ChangeNotifier {
   // Load last backup time on initialization
   Future<void> _loadLastBackupTime() async {
     try {
-      _lastBackupTime = await _driveService.getLastBackupTime();
+      _lastBackupTime = await _firestoreService
+          .getLastBackupTime(); // Changed from _driveService to _firestoreService
       notifyListeners();
     } catch (e) {
       print('Failed to load last backup time: $e');
@@ -118,10 +124,10 @@ class ExpenseProvider with ChangeNotifier {
     _expenses.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
 
-    // Auto-backup to Google Drive if enabled (in background)
+    // Auto-backup to Firestore if enabled (in background) - was Google Drive
     if (_autoSync) {
       try {
-        print('🚀 [EXPENSE_PROVIDER] Attempting Google Drive backup...');
+        print('🚀 [EXPENSE_PROVIDER] Attempting Firestore backup...');
         print('🚀 [EXPENSE_PROVIDER] Auto-sync enabled: $_autoSync');
         print(
             '🚀 [EXPENSE_PROVIDER] Total expenses to backup: ${_expenses.length}');
@@ -131,37 +137,38 @@ class ExpenseProvider with ChangeNotifier {
         final monthlyBudget = HiveService.getMonthlyBudget();
         print('🚀 [EXPENSE_PROVIDER] Monthly budget: $monthlyBudget');
 
-        // First attempt backup
+        // First attempt backup to Firestore
         print('🚀 [EXPENSE_PROVIDER] Starting first backup attempt...');
-        bool success = await _driveService.backupExpenses(_expenses,
+        bool success = await _firestoreService.backupExpenses(_expenses,
             monthlyBudget: monthlyBudget);
 
-        // If backup fails, try to ensure Drive is ready and retry once
+        // If backup fails, try to ensure Firestore is ready and retry once
         if (!success) {
           print(
-              '⚠️ [EXPENSE_PROVIDER] Initial backup failed, ensuring Drive readiness and retrying...');
-          final driveReady =
-              await _driveService.ensureDriveReadyAfterDeletion();
-          if (driveReady) {
+              '⚠️ [EXPENSE_PROVIDER] Initial backup failed, ensuring Firestore readiness and retrying...');
+          final firestoreReady =
+              await _firestoreService.ensureFirestoreReadyAfterDeletion();
+          if (firestoreReady) {
             print(
-                '🚀 [EXPENSE_PROVIDER] Drive is ready, attempting second backup...');
-            success = await _driveService.backupExpenses(_expenses,
+                '🚀 [EXPENSE_PROVIDER] Firestore is ready, attempting second backup...');
+            success = await _firestoreService.backupExpenses(_expenses,
                 monthlyBudget: monthlyBudget);
           } else {
-            print('❌ [EXPENSE_PROVIDER] Failed to prepare Drive for backup');
+            print(
+                '❌ [EXPENSE_PROVIDER] Failed to prepare Firestore for backup');
           }
         }
 
         if (success) {
-          print('✅ [EXPENSE_PROVIDER] Auto-backup to Google Drive successful');
+          print('✅ [EXPENSE_PROVIDER] Auto-backup to Firestore successful');
           _lastBackupTime = DateTime.now();
           notifyListeners(); // Update UI with new backup time
         } else {
           print(
-              '⚠️ [EXPENSE_PROVIDER] Auto-backup to Google Drive failed after retry');
+              '⚠️ [EXPENSE_PROVIDER] Auto-backup to Firestore failed after retry');
         }
       } catch (e, stackTrace) {
-        print('❌ [EXPENSE_PROVIDER] Failed to backup to Google Drive: $e');
+        print('❌ [EXPENSE_PROVIDER] Failed to backup to Firestore: $e');
         print('❌ [EXPENSE_PROVIDER] Stack trace: $stackTrace');
       }
     } else {
@@ -178,37 +185,37 @@ class ExpenseProvider with ChangeNotifier {
     _expenses.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
 
-    // Auto-backup to Google Drive if enabled (in background)
+    // Auto-backup to Firestore if enabled (in background) - was Google Drive
     if (_autoSync) {
       try {
-        print('Attempting Google Drive backup after update...');
+        print('Attempting Firestore backup after update...');
         final monthlyBudget = HiveService.getMonthlyBudget();
 
-        // First attempt backup
-        bool success = await _driveService.backupExpenses(_expenses,
+        // First attempt backup to Firestore
+        bool success = await _firestoreService.backupExpenses(_expenses,
             monthlyBudget: monthlyBudget);
 
-        // If backup fails, try to ensure Drive is ready and retry once
+        // If backup fails, try to ensure Firestore is ready and retry once
         if (!success) {
           print(
-              '⚠️ Initial backup failed, ensuring Drive readiness and retrying...');
-          final driveReady =
-              await _driveService.ensureDriveReadyAfterDeletion();
-          if (driveReady) {
-            success = await _driveService.backupExpenses(_expenses,
+              '⚠️ Initial backup failed, ensuring Firestore readiness and retrying...');
+          final firestoreReady =
+              await _firestoreService.ensureFirestoreReadyAfterDeletion();
+          if (firestoreReady) {
+            success = await _firestoreService.backupExpenses(_expenses,
                 monthlyBudget: monthlyBudget);
           }
         }
 
         if (success) {
-          print('✅ Auto-backup to Google Drive successful');
+          print('✅ Auto-backup to Firestore successful');
           _lastBackupTime = DateTime.now();
           notifyListeners(); // Update UI with new backup time
         } else {
-          print('⚠️ Auto-backup to Google Drive failed after retry');
+          print('⚠️ Auto-backup to Firestore failed after retry');
         }
       } catch (e) {
-        print('❌ Failed to backup to Google Drive: $e');
+        print('❌ Failed to backup to Firestore: $e');
       }
     }
   }
@@ -222,36 +229,36 @@ class ExpenseProvider with ChangeNotifier {
     _expenses.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
 
-    // Auto-backup to Google Drive if enabled (in background)
+    // Auto-backup to Firestore if enabled (in background) - was Google Drive
     if (_autoSync) {
       try {
         final monthlyBudget = HiveService.getMonthlyBudget();
 
-        // First attempt backup
-        bool success = await _driveService.backupExpenses(_expenses,
+        // First attempt backup to Firestore
+        bool success = await _firestoreService.backupExpenses(_expenses,
             monthlyBudget: monthlyBudget);
 
-        // If backup fails, try to ensure Drive is ready and retry once
+        // If backup fails, try to ensure Firestore is ready and retry once
         if (!success) {
           print(
-              '⚠️ Initial backup failed, ensuring Drive readiness and retrying...');
-          final driveReady =
-              await _driveService.ensureDriveReadyAfterDeletion();
-          if (driveReady) {
-            success = await _driveService.backupExpenses(_expenses,
+              '⚠️ Initial backup failed, ensuring Firestore readiness and retrying...');
+          final firestoreReady =
+              await _firestoreService.ensureFirestoreReadyAfterDeletion();
+          if (firestoreReady) {
+            success = await _firestoreService.backupExpenses(_expenses,
                 monthlyBudget: monthlyBudget);
           }
         }
 
         if (success) {
-          print('✅ Auto-backup to Google Drive successful after delete');
+          print('✅ Auto-backup to Firestore successful after delete');
           _lastBackupTime = DateTime.now();
           notifyListeners(); // Update UI with new backup time
         } else {
-          print('⚠️ Auto-backup to Google Drive failed after retry');
+          print('⚠️ Auto-backup to Firestore failed after retry');
         }
       } catch (e) {
-        print('❌ Failed to backup to Google Drive: $e');
+        print('❌ Failed to backup to Firestore: $e');
       }
     }
   }
@@ -407,7 +414,7 @@ class ExpenseProvider with ChangeNotifier {
     loadExpenses();
   }
 
-  // Permanently delete all data including Google Drive backups - FAST (3 seconds max)
+  // Permanently delete all data including Firestore backups - FAST (3 seconds max) - was Google Drive
   Future<bool> permanentlyDeleteAllData() async {
     try {
       print('Starting FAST permanent deletion of all data...');
@@ -420,33 +427,32 @@ class ExpenseProvider with ChangeNotifier {
       print(
           '✅ Local data cleared and budget reset (${stopwatch.elapsedMilliseconds}ms)');
 
-      // Step 2: Delete Google Drive backups with timeout
-      final driveDeleteSuccess =
-          await _driveService.deleteAllBackupFiles().timeout(
+      // Step 2: Delete Firestore backups with timeout (was Google Drive)
+      final firestoreDeleteSuccess =
+          await _firestoreService.deleteAllBackupFiles().timeout(
         const Duration(seconds: 8),
         onTimeout: () {
-          print(
-              '⚠️ Google Drive deletion timed out - continuing in background');
+          print('⚠️ Firestore deletion timed out - continuing in background');
           // Continue deletion in background
-          _driveService.deleteAllBackupFiles().catchError((e) {
-            print('Background Google Drive deletion failed: $e');
+          _firestoreService.deleteAllBackupFiles().catchError((e) {
+            print('Background Firestore deletion failed: $e');
             return false;
           });
           return false;
         },
       ).catchError((e) {
-        print('Google Drive deletion error: $e');
+        print('Firestore deletion error: $e');
         return false;
       });
 
       print(
           '✅ Cloud operations completed (${stopwatch.elapsedMilliseconds}ms)');
 
-      // Step 3: Ensure Google Drive is ready for future backups
-      if (driveDeleteSuccess) {
-        // Prepare Google Drive for new backups after deletion
-        _driveService.ensureDriveReadyAfterDeletion().catchError((e) {
-          print('Failed to prepare Drive for future backups: $e');
+      // Step 3: Ensure Firestore is ready for future backups
+      if (firestoreDeleteSuccess) {
+        // Prepare Firestore for new backups after deletion
+        _firestoreService.ensureFirestoreReadyAfterDeletion().catchError((e) {
+          print('Failed to prepare Firestore for future backups: $e');
           return false;
         });
       }
@@ -457,25 +463,97 @@ class ExpenseProvider with ChangeNotifier {
 
       stopwatch.stop();
 
-      if (driveDeleteSuccess) {
+      if (firestoreDeleteSuccess) {
         print(
             '✅ PERMANENT deletion completed successfully in ${stopwatch.elapsedMilliseconds}ms - NO RECOVERY POSSIBLE');
       } else {
         print(
-            '⚠️ PARTIAL deletion completed in ${stopwatch.elapsedMilliseconds}ms - Google Drive backups may still exist');
+            '⚠️ PARTIAL deletion completed in ${stopwatch.elapsedMilliseconds}ms - Firestore backups may still exist');
       }
 
-      // Return true only if BOTH local AND Google Drive deletion succeeded
-      return driveDeleteSuccess;
+      // Return true only if BOTH local AND Firestore deletion succeeded
+      return firestoreDeleteSuccess;
     } catch (e) {
       print('❌ Error during FAST permanent deletion: $e');
       return false;
     }
   }
 
-  // Note: Firestore is only used for authentication, not for expense data storage
+  // Note: Firestore is used for both authentication and expense data storage
 
-  // Manual backup to Google Drive
+  // Manual backup to Firestore (was Google Drive)
+  Future<bool> backupToFirestore() async {
+    try {
+      final monthlyBudget = HiveService.getMonthlyBudget();
+
+      // First attempt backup
+      bool success = await _firestoreService.backupExpenses(_expenses,
+          monthlyBudget: monthlyBudget);
+
+      // If backup fails, try to ensure Firestore is ready and retry once
+      if (!success) {
+        print(
+            '⚠️ Manual backup failed, ensuring Firestore readiness and retrying...');
+        final firestoreReady =
+            await _firestoreService.ensureFirestoreReadyAfterDeletion();
+        if (firestoreReady) {
+          success = await _firestoreService.backupExpenses(_expenses,
+              monthlyBudget: monthlyBudget);
+        }
+      }
+
+      if (success) {
+        _lastBackupTime = DateTime.now();
+        notifyListeners(); // Update UI with new backup time
+      }
+      return success;
+    } catch (e) {
+      print('Failed to backup to Firestore: $e');
+      return false;
+    }
+  }
+
+  // Restore from Firestore (automatic restore after sign-in) - was Google Drive
+  // Note: After calling this, you should call budgetProvider.reloadBudget() to update the UI
+  Future<bool> restoreFromFirestore() async {
+    try {
+      final restoreData = await _firestoreService.restoreExpenses();
+      if (restoreData != null) {
+        final expenses = restoreData['expenses'] as List<Expense>?;
+        final monthlyBudget = restoreData['monthlyBudget'] as double?;
+
+        if (expenses != null && expenses.isNotEmpty) {
+          // Clear existing local data first
+          await HiveService.clearAllData();
+
+          // Save restored data to Hive
+          for (var expense in expenses) {
+            await HiveService.addExpense(expense);
+          }
+          loadExpenses();
+          print(
+              '✅ Automatic restore successful: ${expenses.length} expenses restored');
+        }
+
+        // Restore monthly budget if available
+        if (monthlyBudget != null) {
+          await HiveService.setMonthlyBudget(monthlyBudget);
+          print('✅ Monthly budget restored: $monthlyBudget');
+          // Note: BudgetProvider needs to reload to see this change
+        }
+
+        return true;
+      }
+      print('ℹ️ No backup data found to restore');
+      return false;
+    } catch (e) {
+      print('❌ Failed to restore from Firestore: $e');
+      return false;
+    }
+  }
+
+  // LEGACY: Keep Google Drive methods for reference/migration
+  // Manual backup to Google Drive (LEGACY - now using Firestore)
   Future<bool> backupToGoogleDrive() async {
     try {
       final monthlyBudget = HiveService.getMonthlyBudget();
@@ -506,7 +584,7 @@ class ExpenseProvider with ChangeNotifier {
     }
   }
 
-  // Restore from Google Drive (automatic restore after sign-in)
+  // Restore from Google Drive (LEGACY - now using Firestore)
   // Note: After calling this, you should call budgetProvider.reloadBudget() to update the UI
   Future<bool> restoreFromGoogleDrive() async {
     try {
@@ -545,10 +623,10 @@ class ExpenseProvider with ChangeNotifier {
     }
   }
 
-  // Get last backup time from Google Drive
+  // Get last backup time from Firestore (was Google Drive)
   Future<DateTime?> getLastBackupTime() async {
     try {
-      return await _driveService.getLastBackupTime();
+      return await _firestoreService.getLastBackupTime();
     } catch (e) {
       print('Failed to get last backup time: $e');
       return null;
@@ -567,7 +645,39 @@ class ExpenseProvider with ChangeNotifier {
     };
   }
 
-  // Debug method to test Google Drive backup manually
+  // Debug method to test Firestore backup manually (was Google Drive)
+  Future<bool> testFirestoreBackup() async {
+    try {
+      print('🧪 [DEBUG] Testing Firestore backup manually...');
+      print('🧪 [DEBUG] Current expenses count: ${_expenses.length}');
+      print('🧪 [DEBUG] Auto-sync enabled: $_autoSync');
+      print('🧪 [DEBUG] User email: ${_authService.getUserEmail()}');
+      print('🧪 [DEBUG] User ID: ${_authService.getUserId()}');
+
+      final monthlyBudget = HiveService.getMonthlyBudget();
+      print('🧪 [DEBUG] Monthly budget: $monthlyBudget');
+
+      // Try direct backup
+      final success = await _firestoreService.backupExpenses(_expenses,
+          monthlyBudget: monthlyBudget);
+
+      if (success) {
+        print('✅ [DEBUG] Manual backup test successful!');
+        _lastBackupTime = DateTime.now();
+        notifyListeners();
+      } else {
+        print('❌ [DEBUG] Manual backup test failed!');
+      }
+
+      return success;
+    } catch (e, stackTrace) {
+      print('❌ [DEBUG] Manual backup test error: $e');
+      print('❌ [DEBUG] Stack trace: $stackTrace');
+      return false;
+    }
+  }
+
+  // LEGACY: Debug method to test Google Drive backup manually
   Future<bool> testGoogleDriveBackup() async {
     try {
       print('🧪 [DEBUG] Testing Google Drive backup manually...');

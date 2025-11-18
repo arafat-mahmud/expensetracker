@@ -25,8 +25,8 @@ class _HistoryPageState extends State<HistoryPage> {
     // Reload local data
     expenseProvider.loadExpenses();
 
-    // Try to restore from Google Drive
-    await expenseProvider.restoreFromGoogleDrive();
+    // Try to restore from Firestore (was Google Drive)
+    await expenseProvider.restoreFromFirestore();
 
     // Update last backup time
     await expenseProvider.getLastBackupTime();

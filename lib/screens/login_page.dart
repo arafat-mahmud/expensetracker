@@ -84,7 +84,7 @@ class LoginPage extends StatelessWidget {
                   _buildFeatureItem(
                     context,
                     Icons.cloud_upload,
-                    'Google Drive Backup',
+                    'Cloud Backup',
                   ),
                   const SizedBox(height: 16),
                   _buildFeatureItem(
@@ -151,7 +151,7 @@ class LoginPage extends StatelessWidget {
 
                   // Info Text
                   Text(
-                    'Sign in to save your data securely\nin Google Drive',
+                    'Sign in to save your data securely\nin Firestore Cloud',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.grey,

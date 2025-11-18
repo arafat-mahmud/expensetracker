@@ -28,12 +28,12 @@ class BackgroundRestoreHandler {
       final budgetProvider =
           Provider.of<BudgetProvider>(context, listen: false);
 
-      // Check if there's any local data - if not, try to restore from Google Drive
+      // Check if there's any local data - if not, try to restore from Firestore (was Google Drive)
       if (expenseProvider.expenses.isEmpty) {
         print(
-            '📱 No local data found - attempting silent restore from Google Drive...');
+            '📱 No local data found - attempting silent restore from Firestore...');
 
-        final success = await expenseProvider.restoreFromGoogleDrive();
+        final success = await expenseProvider.restoreFromFirestore();
 
         if (success) {
           // Reload budget after restore to update UI
