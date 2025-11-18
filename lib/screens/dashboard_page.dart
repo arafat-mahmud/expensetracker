@@ -232,14 +232,12 @@ class _DashboardPageState extends State<DashboardPage> {
                                 ),
                       ),
                       const SizedBox(height: 16),
-                      SizedBox(
-                        height: 250,
-                        child: categoryExpense.isEmpty
-                            ? const Center(
-                                child: Text('No expenses this month'))
-                            : CategoryPieChart(
-                                categoryExpense: categoryExpense),
-                      ),
+                      categoryExpense.isEmpty
+                          ? const SizedBox(
+                              height: 200,
+                              child:
+                                  Center(child: Text('No expenses this month')))
+                          : CategoryPieChart(categoryExpense: categoryExpense),
                     ],
                   ),
                 ),

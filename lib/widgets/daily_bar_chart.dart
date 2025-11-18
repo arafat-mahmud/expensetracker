@@ -30,7 +30,7 @@ class DailyBarChart extends StatelessWidget {
         daysWithExpenses > 0 ? totalExpense / daysWithExpenses : 0.0;
 
     // Calculate proper max Y with some padding
-    final scaledMaxY = maxY > 0 ? (maxY * 1.4).toDouble() : 100.0;
+    final scaledMaxY = maxY > 0 ? (maxY * 1.2).toDouble() : 100.0;
 
     return BarChart(
       BarChartData(
@@ -40,6 +40,8 @@ class DailyBarChart extends StatelessWidget {
         barTouchData: BarTouchData(
           enabled: true,
           touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (group) => Colors.blueAccent,
+            tooltipPadding: const EdgeInsets.all(8),
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               return BarTooltipItem(
                 '${rod.toY.toStringAsFixed(0)}',
@@ -61,26 +63,42 @@ class DailyBarChart extends StatelessWidget {
               getTitlesWidget: (value, meta) {
                 if (days <= 7) {
                   final today = DateTime.now();
-                  final day = today.subtract(Duration(days: 7 - value.toInt()));
+                  final day = today.subtract(Duration(days: days - value.toInt()));
                   return Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Text(
                       '${day.day}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
                       ),
                     ),
                   );
+                } else if (days <= 14) {
+                  if (value.toInt() % 2 == 0 || value.toInt() == 1) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        value.toInt().toString(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    );
+                  }
                 } else {
                   if (value.toInt() % 5 == 0 || value.toInt() == 1) {
                     return Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text(
                         value.toInt().toString(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
                         ),
                       ),
                     );
@@ -100,9 +118,10 @@ class DailyBarChart extends StatelessWidget {
                     padding: const EdgeInsets.only(right: 8.0),
                     child: Text(
                       '${(value / 1000).toStringAsFixed(0)}k',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
                       ),
                     ),
                   );
@@ -111,9 +130,10 @@ class DailyBarChart extends StatelessWidget {
                   padding: const EdgeInsets.only(right: 8.0),
                   child: Text(
                     value.toInt().toString(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
                     ),
                   ),
                 );
@@ -134,7 +154,7 @@ class DailyBarChart extends StatelessWidget {
           horizontalInterval: scaledMaxY / 5,
           getDrawingHorizontalLine: (value) {
             return FlLine(
-              color: Colors.grey.withOpacity(0.2),
+              color: Colors.grey.withOpacity(0.15),
               strokeWidth: 1,
             );
           },
@@ -143,15 +163,15 @@ class DailyBarChart extends StatelessWidget {
           horizontalLines: [
             HorizontalLine(
               y: averageExpense,
-              color: const Color.fromARGB(255, 123, 118, 109),
+              color: Colors.orange.shade600,
               strokeWidth: 2,
               dashArray: [5, 5],
               label: HorizontalLineLabel(
                 show: true,
                 alignment: Alignment.topRight,
                 padding: const EdgeInsets.only(right: 5, bottom: 5),
-                style: const TextStyle(
-                  color: Color.fromARGB(255, 222, 89, 65),
+                style: TextStyle(
+                  color: Colors.orange.shade700,
                   fontWeight: FontWeight.bold,
                   fontSize: 10,
                 ),
