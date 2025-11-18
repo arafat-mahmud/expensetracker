@@ -1,14 +1,12 @@
 import 'package:flutter/foundation.dart';
 import '../services/hive_service.dart';
 import '../services/auth_service.dart';
-import '../services/google_drive_service.dart';
 import '../services/firestore_service.dart';
 
 class BudgetProvider with ChangeNotifier {
   double _monthlyBudget = 10000.0;
   final AuthService _authService = AuthService();
-  final GoogleDriveService _driveService =
-      GoogleDriveService(); // Keep for reference
+// Keep for reference
   final FirestoreService _firestoreService =
       FirestoreService(); // NEW: Firestore service
   String? _currentUserId;
