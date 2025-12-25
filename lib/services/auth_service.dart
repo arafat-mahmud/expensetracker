@@ -5,8 +5,12 @@ import 'package:flutter/services.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Use the singleton instance
-  GoogleSignIn get _googleSignIn => GoogleSignIn.instance;
+  // Configure GoogleSignIn for version 6.1.6 - stable and working
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email'],
+    serverClientId:
+        '992271188521-sgcempef6dvj7uavudrggpruohssn4am.apps.googleusercontent.com',
+  );
 
   // Cache the Google Sign In account after successful authentication
   GoogleSignInAccount? _cachedGoogleAccount;
@@ -20,24 +24,30 @@ class AuthService {
   // Sign in with Google
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // Initialize with scopes
-      await _googleSignIn.initialize();
+      // Sign out first to ensure clean state
+      try {
+        await _googleSignIn.signOut();
+      } catch (e) {
+        print(
+            '⚠️ Sign out before sign in failed (expected if not signed in): $e');
+      }
 
       // Trigger the authentication flow
-      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate(
-        scopeHint: [
-          'email',
-          'https://www.googleapis.com/auth/drive.file',
-          'https://www.googleapis.com/auth/drive.appdata',
-        ],
-      );
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
-      // Cache the Google account for later Drive API use
+      // Check if user cancelled the sign-in
+      if (googleUser == null) {
+        print('User cancelled the sign-in flow');
+        return null;
+      }
+
+      // Cache the Google account for later use
       _cachedGoogleAccount = googleUser;
       print('✅ Cached Google account: ${googleUser.email}');
 
       // Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       // Create a new credential
       final credential = GoogleAuthProvider.credential(
@@ -96,11 +106,9 @@ class AuthService {
       // Skip checking current user as the API doesn't provide it directly
       print('🔐 [AUTH] Proceeding with authentication methods...');
 
-      // Use lightweight authentication (uses already signed-in account without prompting)
-      print(
-          '🔐 [AUTH] Attempting lightweight authentication to get Google account...');
-      final GoogleSignInAccount? account =
-          await _googleSignIn.attemptLightweightAuthentication();
+      // Use signInSilently to get account without prompting user
+      print('🔐 [AUTH] Attempting silent sign-in to get Google account...');
+      final GoogleSignInAccount? account = await _googleSignIn.signInSilently();
 
       if (account != null) {
         print(

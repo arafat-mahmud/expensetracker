@@ -124,6 +124,7 @@ class ExpenseCategory {
   static const String creditCard = 'Credit Card Payment';
   static const String savings = 'Savings / Investment';
   static const String insurance = 'Insurance';
+  static const String incomeTax = 'Income Tax';
 
   // 💞 Personal / Family
   static const String gifts = 'Gifts';
@@ -180,6 +181,7 @@ class ExpenseCategory {
         creditCard,
         savings,
         insurance,
+        incomeTax,
 
         // 💞 Personal / Family
         gifts,
@@ -274,6 +276,8 @@ class ExpenseCategory {
         return '💵';
       case insurance:
         return '🧾';
+      case incomeTax:
+        return '🏛️';
 
       // 💞 Personal / Family
       case gifts:
@@ -375,6 +379,8 @@ class ExpenseCategory {
         return {'color': 0xFF4CAF50}; // Green
       case insurance:
         return {'color': 0xFF3F51B5}; // Indigo
+      case incomeTax:
+        return {'color': 0xFF795548}; // Brown
 
       // 💞 Personal / Family
       case gifts:
@@ -443,6 +449,7 @@ class ExpenseCategory {
           creditCard,
           savings,
           insurance,
+          incomeTax,
         ],
         '💞 Personal / Family': [
           gifts,

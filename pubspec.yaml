@@ -31,14 +31,8 @@ dependencies:
   # Firebase & Authentication
   firebase_core: ^4.2.1
   firebase_auth: ^6.1.2
-  google_sign_in: ^7.2.0
+  google_sign_in: 6.3.0
   cloud_firestore: ^6.1.0
-  
-  # Google Drive API
-  googleapis: ^15.0.0
-  googleapis_auth: ^2.0.0
-  extension_google_sign_in_as_googleapis_auth: ^3.0.0
-  http: ^1.2.0
   
   # PDF Generation & CSV Export
   pdf: ^3.11.3
