@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/expense_model.dart';
 import '../providers/expense_provider.dart';
+import '../providers/language_provider.dart';
+import '../l10n/app_localizations.dart';
 import '../widgets/expense_card.dart';
 import 'add_expense_page.dart';
 import 'add_income_page.dart';
@@ -51,6 +53,8 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   Widget build(BuildContext context) {
     final expenseProvider = Provider.of<ExpenseProvider>(context);
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final localizations = AppLocalizations.of(context);
 
     List<Expense> expenses = expenseProvider.expenses;
 
@@ -69,14 +73,19 @@ class _HistoryPageState extends State<HistoryPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Transaction History',
-          style: GoogleFonts.rubik80sFade(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white
-                : Colors.black,
-          ),
+          localizations.history,
+          style: languageProvider.languageCode == 'bn'
+              ? const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                )
+              : GoogleFonts.rubik80sFade(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                ),
         ),
         actions: [
           IconButton(
@@ -84,7 +93,7 @@ class _HistoryPageState extends State<HistoryPage> {
             onPressed: () {
               Navigator.pushNamed(context, '/statement');
             },
-            tooltip: 'Download Statement',
+            tooltip: localizations.downloadStatement,
           ),
         ],
       ),
@@ -99,21 +108,21 @@ class _HistoryPageState extends State<HistoryPage> {
               children: [
                 Expanded(
                   child: SegmentedButton<String>(
-                    segments: const [
+                    segments: [
                       ButtonSegment(
                         value: 'All',
-                        label: Text('All'),
-                        icon: Icon(Icons.list),
+                        label: Text(localizations.all),
+                        icon: const Icon(Icons.list),
                       ),
                       ButtonSegment(
                         value: 'Debit',
-                        label: Text('Expenses'),
-                        icon: Icon(Icons.remove_circle),
+                        label: Text(localizations.expenses),
+                        icon: const Icon(Icons.remove_circle),
                       ),
                       ButtonSegment(
                         value: 'Credit',
-                        label: Text('Income'),
-                        icon: Icon(Icons.add_circle),
+                        label: Text(localizations.income),
+                        icon: const Icon(Icons.add_circle),
                       ),
                     ],
                     selected: {_transactionType},
@@ -170,7 +179,7 @@ class _HistoryPageState extends State<HistoryPage> {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'No expenses found',
+                                  localizations.noExpensesFound,
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleMedium
@@ -217,6 +226,7 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Widget _buildFilterChip(String category) {
+    final localizations = AppLocalizations.of(context);
     final isSelected = _filterCategory == category;
     String icon = '';
 
@@ -229,10 +239,13 @@ class _HistoryPageState extends State<HistoryPage> {
       }
     }
 
+    // Translate 'All' if needed
+    final displayText = category == 'All' ? localizations.all : category;
+
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: FilterChip(
-        label: Text(category),
+        label: Text(displayText),
         selected: isSelected,
         onSelected: (selected) {
           setState(() {
@@ -297,6 +310,8 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Widget _buildBottomNavBar(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     return BottomNavigationBar(
       currentIndex: 1,
       onTap: (index) {
@@ -306,18 +321,18 @@ class _HistoryPageState extends State<HistoryPage> {
           Navigator.pushReplacementNamed(context, '/settings');
         }
       },
-      items: const [
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard),
-          label: 'Dashboard',
+          icon: const Icon(Icons.dashboard),
+          label: localizations.dashboard,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.history),
-          label: 'History',
+          icon: const Icon(Icons.history),
+          label: localizations.history,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.settings),
-          label: 'Settings',
+          icon: const Icon(Icons.settings),
+          label: localizations.settings,
         ),
       ],
     );

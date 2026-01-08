@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/expense_model.dart';
+import '../l10n/app_localizations.dart';
 
 class GroupedCategoryDropdown extends StatelessWidget {
   final String? selectedCategory;
@@ -17,6 +18,8 @@ class GroupedCategoryDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
+
     return InkWell(
       onTap: () => _showCategoryGroupPicker(context),
       child: InputDecorator(
@@ -38,7 +41,7 @@ class GroupedCategoryDropdown extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  selectedCategory!,
+                  localizations.getCategoryName(selectedCategory!),
                   style: const TextStyle(fontSize: 16),
                 ),
               ),
@@ -53,8 +56,35 @@ class GroupedCategoryDropdown extends StatelessWidget {
     );
   }
 
+  // Helper method to get localized group name
+  String _getLocalizedGroupName(BuildContext context, String groupHeader) {
+    final localizations = AppLocalizations.of(context);
+    // Remove emoji by finding the first space and taking everything after it
+    final spaceIndex = groupHeader.indexOf(' ');
+    final groupName = spaceIndex >= 0
+        ? groupHeader.substring(spaceIndex + 1).trim()
+        : groupHeader;
+
+    if (groupName == 'Basic Household Expenses')
+      return localizations.basicHouseholdExpenses;
+    if (groupName == 'Daily Living') return localizations.dailyLiving;
+    if (groupName == 'Transportation') return localizations.transportation;
+    if (groupName == 'Health & Wellness') return localizations.healthWellness;
+    if (groupName == 'Education') return localizations.education;
+    if (groupName == 'Work & Business') return localizations.workBusiness;
+    if (groupName == 'Entertainment & Lifestyle')
+      return localizations.entertainment;
+    if (groupName == 'Financial') return localizations.financialObligations;
+    if (groupName == 'Personal / Family') return localizations.specialOccasions;
+    if (groupName == 'Other') return localizations.miscellaneous;
+
+    return groupName;
+  }
+
   // First step: Show category groups with professional design
   void _showCategoryGroupPicker(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -90,6 +120,18 @@ class GroupedCategoryDropdown extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
+
+                  // Title
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      localizations.selectCategory,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ),
+
                   // Group list with professional cards
                   Expanded(
                     child: ListView.builder(
@@ -182,8 +224,8 @@ class GroupedCategoryDropdown extends StatelessWidget {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            groupHeader.substring(
-                                                2), // Remove emoji and space
+                                            _getLocalizedGroupName(
+                                                context, groupHeader),
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .titleMedium
@@ -194,7 +236,7 @@ class GroupedCategoryDropdown extends StatelessWidget {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            '${categories.length} categories available',
+                                            '${categories.length} ${localizations.categoriesAvailable}',
                                             style: Theme.of(context)
                                                 .textTheme
                                                 .bodySmall
@@ -241,6 +283,7 @@ class GroupedCategoryDropdown extends StatelessWidget {
   // Second step: Show categories within selected group with professional design
   void _showCategoriesInGroup(BuildContext context, String groupHeader) {
     final categories = ExpenseCategory.getCategoriesForGroup(groupHeader);
+    final localizations = AppLocalizations.of(context)!;
 
     showModalBottomSheet(
       context: context,
@@ -292,7 +335,7 @@ class GroupedCategoryDropdown extends StatelessWidget {
                           tooltip: 'Back to groups',
                         ),
                         Text(
-                          groupHeader,
+                          _getLocalizedGroupName(context, groupHeader),
                           style:
                               Theme.of(context).textTheme.titleLarge?.copyWith(
                                     fontWeight: FontWeight.bold,
@@ -389,7 +432,7 @@ class GroupedCategoryDropdown extends StatelessWidget {
                                     // Category name
                                     Expanded(
                                       child: Text(
-                                        category,
+                                        localizations.getCategoryName(category),
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleMedium
@@ -454,7 +497,7 @@ class GroupedCategoryDropdown extends StatelessWidget {
                           _showCategoryGroupPicker(context);
                         },
                         icon: const Icon(Icons.swap_horiz_rounded),
-                        label: const Text('Choose Different Group'),
+                        label: Text(localizations.chooseDifferentGroup),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey[100],
                           foregroundColor: Colors.grey[700],

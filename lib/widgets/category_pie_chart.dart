@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/expense_model.dart';
+import '../l10n/app_localizations.dart';
 
 class CategoryPieChart extends StatelessWidget {
   final Map<String, double> categoryExpense;
@@ -91,7 +92,7 @@ class CategoryPieChart extends StatelessWidget {
                     ),
                     const SizedBox(width: 5),
                     Text(
-                      entry.key,
+                      AppLocalizations.of(context)!.getCategoryName(entry.key),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             fontWeight: FontWeight.w500,
                             fontSize: 11,

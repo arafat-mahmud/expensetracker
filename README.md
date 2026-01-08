@@ -1,12 +1,29 @@
-# 💰 Expense Tracker - Personal Expense Tracker# expensetracker
+# 💰 Expense Tracker - Personal Expense Tracker
 
+A modern, feature-rich Flutter app for tracking daily expenses with beautiful charts, category-wise analysis, budget management, and **multi-language support** (English & বাংলা).
 
+## 🌍 Multi-Language Support
 
-A modern, feature-rich Flutter app for tracking daily expenses with beautiful charts, category-wise analysis, and budget management.A new Flutter project.
+### Supported Languages
+- 🇬🇧 **English** (Default)
+- 🇧🇩 **বাংলা (Bangla)**
 
+### Features
+- ✅ Complete UI localization
+- ✅ Localized PDF statements with Bangla fonts
+- ✅ Number formatting (১২৩৪৫৬৭৮৯০)
+- ✅ Date localization
+- ✅ Easy language switching from Settings
+- ✅ Persistent language preference
+- ✅ No app restart required
 
+**How to change language:**
+1. Go to **Settings** (সেটিংস)
+2. Under **Appearance**, tap **Language** (ভাষা)
+3. Select your preferred language
+4. The entire app updates instantly!
 
-## 📱 Features## Getting Started
+## 📱 Features
 
 
 

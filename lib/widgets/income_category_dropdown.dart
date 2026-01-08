@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/expense_model.dart';
+import '../l10n/app_localizations.dart';
 
 class IncomeCategoryDropdown extends StatelessWidget {
   final String? selectedCategory;
@@ -17,6 +18,8 @@ class IncomeCategoryDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
+
     return InkWell(
       onTap: () => _showIncomeCategoryPicker(context),
       child: InputDecorator(
@@ -45,7 +48,7 @@ class IncomeCategoryDropdown extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  selectedCategory!,
+                  localizations.getCategoryName(selectedCategory!),
                   style: const TextStyle(
                       fontSize: 16, fontWeight: FontWeight.w500),
                 ),
@@ -64,6 +67,8 @@ class IncomeCategoryDropdown extends StatelessWidget {
   }
 
   void _showIncomeCategoryPicker(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -104,7 +109,7 @@ class IncomeCategoryDropdown extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.all(20),
                     child: Text(
-                      'Select Income Category',
+                      localizations.selectIncomeCategory,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -193,7 +198,7 @@ class IncomeCategoryDropdown extends StatelessWidget {
                                     // Category name
                                     Expanded(
                                       child: Text(
-                                        category,
+                                        localizations.getCategoryName(category),
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleMedium

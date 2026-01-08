@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/expense_model.dart';
 import '../providers/expense_provider.dart';
+import '../l10n/app_localizations.dart';
 import '../widgets/grouped_category_dropdown.dart';
 
 class AddExpensePage extends StatefulWidget {
@@ -61,6 +62,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
 
   void _saveExpense() async {
     if (_formKey.currentState!.validate()) {
+      final localizations = AppLocalizations.of(context);
+
       // Use category name as title if title is empty
       final title = _titleController.text.trim().isEmpty
           ? _selectedCategory
@@ -82,13 +85,16 @@ class _AddExpensePageState extends State<AddExpensePage> {
 
       // Show instant feedback
       if (mounted) {
+        final message = isEditing
+            ? localizations.expenseUpdated
+            : localizations.expenseAdded;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 8),
-                Text(isEditing ? 'Expense updated!' : 'Expense added!'),
+                Text(message),
               ],
             ),
             backgroundColor: Colors.green,
@@ -117,6 +123,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -124,7 +132,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.red,
         title: Text(
-          isEditing ? 'Edit Expense' : 'Add Expense',
+          isEditing ? localizations.edit : localizations.addExpenseTitle,
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             color: Colors.red,
@@ -148,8 +156,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
                       child: TextFormField(
                         controller: _titleController,
                         decoration: InputDecoration(
-                          labelText: 'Title (Optional)',
-                          hintText: 'e.g., Electricity Bill',
+                          labelText: localizations.titleOptional,
+                          hintText: localizations.titleHint,
                           prefixIcon: Container(
                             margin: const EdgeInsets.all(8),
                             padding: const EdgeInsets.all(8),
@@ -177,7 +185,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                             _selectedCategory = value!;
                           });
                         },
-                        labelText: 'Category',
+                        labelText: localizations.category,
                         prefixIcon: Icons.category_rounded,
                       ),
                     ),
@@ -188,7 +196,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                       child: TextFormField(
                         controller: _amountController,
                         decoration: InputDecoration(
-                          labelText: 'Amount',
+                          labelText: localizations.amount,
                           hintText: '0.00',
                           prefixIcon: Container(
                             margin: const EdgeInsets.all(8),
@@ -210,11 +218,11 @@ class _AddExpensePageState extends State<AddExpensePage> {
                             fontSize: 18, fontWeight: FontWeight.w600),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Please enter an amount';
+                            return localizations.pleaseEnterAmount;
                           }
                           final amount = double.tryParse(value.trim());
                           if (amount == null || amount <= 0) {
-                            return 'Please enter a valid amount';
+                            return localizations.pleaseEnterValidAmount;
                           }
                           return null;
                         },
@@ -231,7 +239,7 @@ class _AddExpensePageState extends State<AddExpensePage> {
                           padding: const EdgeInsets.symmetric(vertical: 4),
                           child: InputDecorator(
                             decoration: InputDecoration(
-                              labelText: 'Date',
+                              labelText: localizations.date,
                               prefixIcon: Container(
                                 margin: const EdgeInsets.all(8),
                                 padding: const EdgeInsets.all(8),
@@ -261,8 +269,8 @@ class _AddExpensePageState extends State<AddExpensePage> {
                       child: TextFormField(
                         controller: _noteController,
                         decoration: InputDecoration(
-                          labelText: 'Note (Optional)',
-                          hintText: 'Add any additional notes',
+                          labelText: localizations.noteOptional,
+                          hintText: localizations.noteHint,
                           prefixIcon: Container(
                             margin: const EdgeInsets.all(8),
                             padding: const EdgeInsets.all(8),
@@ -321,7 +329,9 @@ class _AddExpensePageState extends State<AddExpensePage> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  isEditing ? 'Update Expense' : 'Save Expense',
+                                  isEditing
+                                      ? localizations.updateExpense
+                                      : localizations.saveExpense,
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,

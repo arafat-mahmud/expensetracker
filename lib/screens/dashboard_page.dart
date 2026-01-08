@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../providers/expense_provider.dart';
 import '../providers/budget_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/language_provider.dart';
+import '../l10n/app_localizations.dart';
 import '../models/expense_model.dart';
 import '../widgets/category_pie_chart.dart';
 import '../widgets/daily_bar_chart.dart';
@@ -129,6 +131,8 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     final expenseProvider = Provider.of<ExpenseProvider>(context);
     final budgetProvider = Provider.of<BudgetProvider>(context);
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final localizations = AppLocalizations.of(context);
 
     final totalExpense = expenseProvider.getTotalExpenseForMonth(selectedMonth);
     final totalIncome = expenseProvider.getTotalIncomeForMonth(selectedMonth);
@@ -144,14 +148,19 @@ class _DashboardPageState extends State<DashboardPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Expense Tracker',
-          style: GoogleFonts.rubik80sFade(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white
-                : Colors.black,
-          ),
+          localizations.appName,
+          style: languageProvider.languageCode == 'bn'
+              ? const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                )
+              : GoogleFonts.rubik80sFade(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                ),
         ),
         actions: [
           // Show subtle loading indicator during background restore
@@ -174,7 +183,7 @@ class _DashboardPageState extends State<DashboardPage> {
             onPressed: () {
               _showMonthPicker(context);
             },
-            tooltip: 'Select Month',
+            tooltip: localizations.selectMonth,
           ),
         ],
       ),
@@ -187,12 +196,12 @@ class _DashboardPageState extends State<DashboardPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Balance Summary Card
-              _buildBalanceCard(
-                  context, totalIncome, totalExpense, monthBalance),
+              _buildBalanceCard(context, totalIncome, totalExpense,
+                  monthBalance, localizations),
               const SizedBox(height: 20),
 
               // Quick Action Buttons
-              _buildQuickActionButtons(context),
+              _buildQuickActionButtons(context, localizations),
               const SizedBox(height: 20),
 
               // Budget Progress Card
@@ -203,12 +212,13 @@ class _DashboardPageState extends State<DashboardPage> {
                 budgetUsed,
                 remainingBudget,
                 isOverBudget,
+                localizations,
               ),
               const SizedBox(height: 20),
 
               // Category Expense Summary
               Text(
-                'Category Breakdown',
+                localizations.categoryExpenses,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -225,7 +235,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Expense Distribution',
+                        localizations.expensesByCategory,
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
@@ -233,10 +243,11 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                       const SizedBox(height: 16),
                       categoryExpense.isEmpty
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 200,
-                              child:
-                                  Center(child: Text('No expenses this month')))
+                              child: Center(
+                                  child:
+                                      Text(localizations.noExpensesThisMonth)))
                           : CategoryPieChart(categoryExpense: categoryExpense),
                     ],
                   ),
@@ -255,7 +266,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Daily Expense Trend',
+                            localizations.dailyExpenseTrend,
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
@@ -273,7 +284,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                 ),
                               );
                             },
-                            child: const Text('View'),
+                            child: Text(localizations.view),
                           ),
                         ],
                       ),
@@ -281,8 +292,8 @@ class _DashboardPageState extends State<DashboardPage> {
                       SizedBox(
                         height: 200,
                         child: dailyExpense.isEmpty
-                            ? const Center(
-                                child: Text('No expenses in the last 7 days'))
+                            ? Center(
+                                child: Text(localizations.noExpensesLast7Days))
                             : DailyBarChart(
                                 dailyExpense: expenseProvider
                                     .getDailyExpenseForLastNDays(7),
@@ -318,7 +329,8 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  Widget _buildQuickActionButtons(BuildContext context) {
+  Widget _buildQuickActionButtons(
+      BuildContext context, AppLocalizations localizations) {
     return Row(
       children: [
         Expanded(
@@ -330,9 +342,9 @@ class _DashboardPageState extends State<DashboardPage> {
               );
             },
             icon: const Icon(Icons.add_circle_outline, size: 24),
-            label: const Text(
-              'Add Income',
-              style: TextStyle(
+            label: Text(
+              localizations.addIncome,
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
@@ -358,9 +370,9 @@ class _DashboardPageState extends State<DashboardPage> {
               );
             },
             icon: const Icon(Icons.remove_circle_outline, size: 24),
-            label: const Text(
-              'Add Expense',
-              style: TextStyle(
+            label: Text(
+              localizations.addExpense,
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
@@ -385,6 +397,7 @@ class _DashboardPageState extends State<DashboardPage> {
     double totalIncome,
     double totalExpense,
     double balance,
+    AppLocalizations localizations,
   ) {
     final isPositive = balance >= 0;
     return Card(
@@ -404,7 +417,7 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Column(
           children: [
             Text(
-              'Current Balance',
+              localizations.totalBalance,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w500,
@@ -440,7 +453,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Income',
+                              localizations.income,
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
@@ -483,7 +496,7 @@ class _DashboardPageState extends State<DashboardPage> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Expense',
+                              localizations.expense,
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
@@ -521,6 +534,7 @@ class _DashboardPageState extends State<DashboardPage> {
     double budgetUsed,
     double remainingBudget,
     bool isOverBudget,
+    AppLocalizations localizations,
   ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
@@ -537,7 +551,7 @@ class _DashboardPageState extends State<DashboardPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Monthly Budget',
+                  localizations.monthlyBudget,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: isDarkMode ? Colors.white : Colors.black,
@@ -569,7 +583,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Spent',
+                      localizations.spent,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: isDarkMode ? Colors.white : Colors.black87,
                           ),
@@ -589,7 +603,9 @@ class _DashboardPageState extends State<DashboardPage> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      isOverBudget ? 'Over Budget' : 'Remaining',
+                      isOverBudget
+                          ? localizations.overBudget
+                          : localizations.remaining,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: isDarkMode ? Colors.white : Colors.black87,
                           ),
@@ -618,11 +634,13 @@ class _DashboardPageState extends State<DashboardPage> {
     Map<String, double> categoryExpense,
     ExpenseProvider expenseProvider,
   ) {
+    final localizations = AppLocalizations.of(context)!;
+
     if (categoryExpense.isEmpty) {
-      return const Card(
+      return Card(
         child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Center(child: Text('No expenses in any category')),
+          padding: const EdgeInsets.all(16),
+          child: Center(child: Text(localizations.noExpensesInAnyCategory)),
         ),
       );
     }
@@ -654,7 +672,7 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ),
             title: Text(
-              category,
+              localizations.getCategoryName(category),
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             trailing: Text(
@@ -682,6 +700,8 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildBottomNavBar(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     return BottomNavigationBar(
       currentIndex: 0,
       onTap: (index) {
@@ -691,18 +711,18 @@ class _DashboardPageState extends State<DashboardPage> {
           Navigator.pushReplacementNamed(context, '/settings');
         }
       },
-      items: const [
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard),
-          label: 'Dashboard',
+          icon: const Icon(Icons.dashboard),
+          label: localizations.dashboard,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.history),
-          label: 'History',
+          icon: const Icon(Icons.history),
+          label: localizations.history,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.settings),
-          label: 'Settings',
+          icon: const Icon(Icons.settings),
+          label: localizations.settings,
         ),
       ],
     );

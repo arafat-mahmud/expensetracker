@@ -5,6 +5,8 @@ import '../providers/theme_provider.dart';
 import '../providers/budget_provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/language_provider.dart';
+import '../l10n/app_localizations.dart';
 import 'developer_info_screen.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -50,18 +52,25 @@ class _SettingsPageState extends State<SettingsPage> {
     final budgetProvider = Provider.of<BudgetProvider>(context);
     final expenseProvider = Provider.of<ExpenseProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final localizations = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Settings',
-          style: GoogleFonts.rubik80sFade(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white
-                : Colors.black,
-          ),
+          localizations.settings,
+          style: languageProvider.languageCode == 'bn'
+              ? const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                )
+              : GoogleFonts.rubik80sFade(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
+                ),
         ),
       ),
       body: RefreshIndicator(
@@ -83,13 +92,14 @@ class _SettingsPageState extends State<SettingsPage> {
                         : null,
                   ),
                   title: Text(
-                    authProvider.getUserDisplayName() ?? 'User',
+                    authProvider.getUserDisplayName() ?? localizations.account,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(authProvider.getUserEmail() ?? ''),
                   trailing: IconButton(
                     icon: const Icon(Icons.logout, color: Colors.red),
-                    onPressed: () => _showSignOutDialog(context, authProvider),
+                    onPressed: () => _showSignOutDialog(
+                        context, authProvider, localizations),
                   ),
                 ),
               ),
@@ -99,8 +109,8 @@ class _SettingsPageState extends State<SettingsPage> {
             Card(
               child: ListTile(
                 leading: const Icon(Icons.download),
-                title: const Text('Download Statement'),
-                subtitle: const Text('Export transactions as PDF or CSV'),
+                title: Text(localizations.downloadStatement),
+                subtitle: Text(localizations.generateStatement),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.pushNamed(context, '/statement');
@@ -109,7 +119,15 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 16),
 
-            // Theme Section
+            // Appearance Section
+            Text(
+              localizations.appearance,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
             Card(
               child: Column(
                 children: [
@@ -119,13 +137,24 @@ class _SettingsPageState extends State<SettingsPage> {
                           ? Icons.dark_mode
                           : Icons.light_mode,
                     ),
-                    title: const Text('Dark Mode'),
+                    title: Text(localizations.darkMode),
                     trailing: Switch(
                       value: themeProvider.isDarkMode,
                       onChanged: (value) {
                         themeProvider.toggleTheme();
                       },
                     ),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.language),
+                    title: Text(localizations.language),
+                    subtitle: Text(languageProvider.languageName),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      _showLanguageDialog(
+                          context, languageProvider, localizations);
+                    },
                   ),
                 ],
               ),
@@ -138,13 +167,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.account_balance_wallet),
-                    title: const Text('Monthly Budget'),
+                    title: Text(localizations.monthlyBudget),
                     subtitle: Text(
                         '${budgetProvider.monthlyBudget.toStringAsFixed(0)}'),
                     trailing: IconButton(
                       icon: const Icon(Icons.edit),
                       onPressed: () {
-                        _showBudgetDialog(context, budgetProvider);
+                        _showBudgetDialog(
+                            context, budgetProvider, localizations);
                       },
                     ),
                   ),
@@ -157,15 +187,15 @@ class _SettingsPageState extends State<SettingsPage> {
             Card(
               child: Column(
                 children: [
-                  const ListTile(
-                    leading: Icon(Icons.info),
-                    title: Text('App Version'),
-                    subtitle: Text('1.0.0'),
+                  ListTile(
+                    leading: const Icon(Icons.info),
+                    title: Text(localizations.version),
+                    subtitle: const Text('1.0.0'),
                   ),
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.person),
-                    title: const Text('About the Developer'),
+                    title: Text(localizations.developerInfo),
                     subtitle: const Text('Developer information and contact'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
@@ -188,14 +218,15 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.delete_sweep, color: Colors.red),
-                    title: const Text(
-                      'Delete All Data',
-                      style: TextStyle(color: Colors.red),
+                    title: Text(
+                      localizations.clearAllData,
+                      style: const TextStyle(color: Colors.red),
                     ),
                     subtitle: const Text('Permanent deletion all history'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      _showClearDataDialog(context, expenseProvider);
+                      _showClearDataDialog(
+                          context, expenseProvider, localizations);
                     },
                   ),
                 ],
@@ -208,16 +239,17 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _showSignOutDialog(BuildContext context, AuthProvider authProvider) {
+  void _showSignOutDialog(BuildContext context, AuthProvider authProvider,
+      AppLocalizations localizations) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
+        title: Text(localizations.signOut),
+        content: Text(localizations.signOutConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(localizations.cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -230,13 +262,13 @@ class _SettingsPageState extends State<SettingsPage> {
                   (route) => false,
                 );
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Signed out successfully')),
+                  SnackBar(content: Text(localizations.signOut)),
                 );
               }
             },
-            child: const Text(
-              'Sign Out',
-              style: TextStyle(color: Colors.red),
+            child: Text(
+              localizations.signOut,
+              style: const TextStyle(color: Colors.red),
             ),
           ),
         ],
@@ -244,7 +276,42 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _showBudgetDialog(BuildContext context, BudgetProvider budgetProvider) {
+  void _showLanguageDialog(BuildContext context,
+      LanguageProvider languageProvider, AppLocalizations localizations) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(localizations.selectLanguage),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: languageProvider.supportedLanguages.map((lang) {
+            final isSelected = languageProvider.languageCode == lang['code'];
+            return RadioListTile<String>(
+              title: Text(lang['name']!),
+              value: lang['code']!,
+              groupValue: languageProvider.languageCode,
+              selected: isSelected,
+              onChanged: (value) {
+                if (value != null) {
+                  languageProvider.changeLanguage(value);
+                  Navigator.pop(context);
+                }
+              },
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(localizations.cancel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBudgetDialog(BuildContext context, BudgetProvider budgetProvider,
+      AppLocalizations localizations) {
     final TextEditingController controller = TextEditingController(
       text: budgetProvider.monthlyBudget.toStringAsFixed(0),
     );
@@ -252,21 +319,21 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Set Monthly Budget'),
+        title: Text(localizations.setBudget),
         content: TextField(
           controller: controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Budget Amount',
-            prefixIcon: Icon(Icons.account_balance_wallet),
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: localizations.amount,
+            prefixIcon: const Icon(Icons.account_balance_wallet),
+            border: const OutlineInputBorder(),
           ),
           autofocus: true,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(localizations.cancel),
           ),
           TextButton(
             onPressed: () {
@@ -285,7 +352,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       children: [
                         const Icon(Icons.check_circle, color: Colors.white),
                         const SizedBox(width: 8),
-                        Text('Budget updated to ${budget.toStringAsFixed(0)}'),
+                        Text(
+                            '${localizations.budgetUpdated} ${budget.toStringAsFixed(0)}'),
                       ],
                     ),
                     backgroundColor: Colors.green,
@@ -295,28 +363,28 @@ class _SettingsPageState extends State<SettingsPage> {
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter a valid amount'),
+                  SnackBar(
+                    content: Text(localizations.enterValidAmount),
                     backgroundColor: Colors.red,
                   ),
                 );
               }
             },
-            child: const Text('Save'),
+            child: Text(localizations.save),
           ),
         ],
       ),
     );
   }
 
-  void _showClearDataDialog(
-      BuildContext context, ExpenseProvider expenseProvider) {
+  void _showClearDataDialog(BuildContext context,
+      ExpenseProvider expenseProvider, AppLocalizations localizations) {
     // Directly show permanent deletion confirmation
-    _showPermanentDeleteConfirmation(context, expenseProvider);
+    _showPermanentDeleteConfirmation(context, expenseProvider, localizations);
   }
 
-  void _showPermanentDeleteConfirmation(
-      BuildContext context, ExpenseProvider expenseProvider) {
+  void _showPermanentDeleteConfirmation(BuildContext context,
+      ExpenseProvider expenseProvider, AppLocalizations localizations) {
     final TextEditingController confirmController = TextEditingController();
     bool isConfirmValid = false;
 
@@ -545,6 +613,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildBottomNavBar(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     return BottomNavigationBar(
       currentIndex: 2,
       onTap: (index) {
@@ -554,18 +624,18 @@ class _SettingsPageState extends State<SettingsPage> {
           Navigator.pushReplacementNamed(context, '/history');
         }
       },
-      items: const [
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard),
-          label: 'Dashboard',
+          icon: const Icon(Icons.dashboard),
+          label: localizations.dashboard,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.history),
-          label: 'History',
+          icon: const Icon(Icons.history),
+          label: localizations.history,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.settings),
-          label: 'Settings',
+          icon: const Icon(Icons.settings),
+          label: localizations.settings,
         ),
       ],
     );

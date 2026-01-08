@@ -229,45 +229,28 @@ class ExpenseProvider with ChangeNotifier {
 
   // Delete expense
   Future<void> deleteExpense(String id) async {
+    // Find the expense before deleting to have its data for Firestore
+    final expenseToDelete = _expenses.firstWhere((e) => e.id == id);
+
+    // Delete from local storage
     await HiveService.deleteExpense(id);
+
+    // Delete from Firestore if auto-sync is enabled
+    if (_autoSync) {
+      try {
+        // Delete from both Firestore structures
+        await _firestoreService.deleteExpense(id);
+        await _firestoreService.deleteExpenseByDate(expenseToDelete);
+        print('✅ Deleted expense from Firestore: $id');
+      } catch (e) {
+        print('❌ Failed to delete from Firestore: $e');
+      }
+    }
 
     // Immediately update UI
     _expenses = HiveService.getAllExpenses();
     _expenses.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
-
-    // Auto-backup to Firestore if enabled (in background) - was Google Drive
-    if (_autoSync) {
-      try {
-        final monthlyBudget = HiveService.getMonthlyBudget();
-
-        // First attempt backup to Firestore
-        bool success = await _firestoreService.backupExpenses(_expenses,
-            monthlyBudget: monthlyBudget);
-
-        // If backup fails, try to ensure Firestore is ready and retry once
-        if (!success) {
-          print(
-              '⚠️ Initial backup failed, ensuring Firestore readiness and retrying...');
-          final firestoreReady =
-              await _firestoreService.ensureFirestoreReadyAfterDeletion();
-          if (firestoreReady) {
-            success = await _firestoreService.backupExpenses(_expenses,
-                monthlyBudget: monthlyBudget);
-          }
-        }
-
-        if (success) {
-          print('✅ Auto-backup to Firestore successful after delete');
-          _lastBackupTime = DateTime.now();
-          notifyListeners(); // Update UI with new backup time
-        } else {
-          print('⚠️ Auto-backup to Firestore failed after retry');
-        }
-      } catch (e) {
-        print('❌ Failed to backup to Firestore: $e');
-      }
-    }
   }
 
   // Get total expense for a specific month

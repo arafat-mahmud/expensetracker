@@ -1,9 +1,10 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/expense_provider.dart';
-import '../services/statement_service.dart';
+import '../providers/language_provider.dart';
+import '../services/localized_statement_service.dart';
+import '../l10n/app_localizations.dart';
 
 class StatementPage extends StatefulWidget {
   const StatementPage({super.key});
@@ -55,6 +56,8 @@ class _StatementPageState extends State<StatementPage> {
     try {
       final expenseProvider =
           Provider.of<ExpenseProvider>(context, listen: false);
+      final languageProvider =
+          Provider.of<LanguageProvider>(context, listen: false);
 
       // Get transactions for the period
       final transactions =
@@ -74,7 +77,8 @@ class _StatementPageState extends State<StatementPage> {
 
       final balance = totalIncome - totalExpense;
 
-      await StatementService.generatePdfStatement(
+      // Use localized statement service
+      await LocalizedStatementService.generateLocalizedPdfStatement(
         startDate: _startDate,
         endDate: _endDate,
         transactions: transactions,
@@ -82,21 +86,24 @@ class _StatementPageState extends State<StatementPage> {
         totalExpense: totalExpense,
         balance: balance,
         context: context,
+        languageCode: languageProvider.languageCode,
       );
 
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PDF statement generated successfully'),
+          SnackBar(
+            content: Text(localizations.statementGenerated),
             backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
+        final localizations = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error generating PDF: $e'),
+            content: Text('${localizations.error}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -136,6 +143,7 @@ class _StatementPageState extends State<StatementPage> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
     final expenseProvider = Provider.of<ExpenseProvider>(context);
     final transactions =
         expenseProvider.filterByDateRange(_startDate, _endDate);
@@ -157,7 +165,7 @@ class _StatementPageState extends State<StatementPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Account Statement'),
+        title: Text(localizations.accountStatement),
         backgroundColor: Colors.blue.shade900,
         foregroundColor: Colors.white,
       ),
@@ -172,18 +180,18 @@ class _StatementPageState extends State<StatementPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Quick Period Selection
-                  _buildSectionHeader(context, 'QUICK SELECT PERIOD'),
+                  _buildSectionHeader(context, localizations.quickSelectPeriod),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      'Last 30 Days',
-                      'This Month',
-                      'Last Month',
-                      'Last 3 Months',
-                      'Last 6 Months',
-                      'This Year',
+                      localizations.last30Days,
+                      localizations.thisMonth,
+                      localizations.lastMonth,
+                      localizations.last3Months,
+                      localizations.last6Months,
+                      localizations.thisYear,
                     ].map((period) {
                       return ChoiceChip(
                         label: Text(period),
@@ -196,7 +204,7 @@ class _StatementPageState extends State<StatementPage> {
                   const SizedBox(height: 24),
 
                   // Custom Date Range
-                  _buildSectionHeader(context, 'CUSTOM DATE RANGE'),
+                  _buildSectionHeader(context, localizations.customDateRange),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -213,7 +221,7 @@ class _StatementPageState extends State<StatementPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'START DATE',
+                                  localizations.startDate,
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: Colors.grey.shade600,
@@ -256,7 +264,7 @@ class _StatementPageState extends State<StatementPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'END DATE',
+                                  localizations.endDate,
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: Colors.grey.shade600,
@@ -290,7 +298,7 @@ class _StatementPageState extends State<StatementPage> {
                   const SizedBox(height: 24),
 
                   // Account Summary Card - Banking Style
-                  _buildSectionHeader(context, 'ACCOUNT SUMMARY'),
+                  _buildSectionHeader(context, localizations.accountSummary),
                   const SizedBox(height: 12),
                   Container(
                     decoration: BoxDecoration(
@@ -312,7 +320,7 @@ class _StatementPageState extends State<StatementPage> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'TRANSACTIONS: ${transactions.length}',
+                                '${localizations.transactions}: ${transactions.length}',
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -336,7 +344,9 @@ class _StatementPageState extends State<StatementPage> {
                                   ),
                                 ),
                                 child: Text(
-                                  balance >= 0 ? 'SURPLUS' : 'DEFICIT',
+                                  balance >= 0
+                                      ? localizations.surplus
+                                      : localizations.deficit,
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
@@ -354,25 +364,25 @@ class _StatementPageState extends State<StatementPage> {
                           child: Column(
                             children: [
                               _buildProfessionalSummaryRow(
-                                'Opening Balance',
+                                localizations.openingBalance,
                                 openingBalance,
                                 Colors.blue.shade700,
                               ),
                               const Divider(height: 24),
                               _buildProfessionalSummaryRow(
-                                'Total Credits (+)',
+                                localizations.totalCredits,
                                 totalIncome,
                                 Colors.green.shade700,
                               ),
                               const SizedBox(height: 12),
                               _buildProfessionalSummaryRow(
-                                'Total Debits (-)',
+                                localizations.totalDebits,
                                 totalExpense,
                                 Colors.red.shade700,
                               ),
                               const Divider(height: 24),
                               _buildProfessionalSummaryRow(
-                                'Closing Balance',
+                                localizations.closingBalance,
                                 balance,
                                 balance >= 0
                                     ? Colors.green.shade700
@@ -410,7 +420,7 @@ class _StatementPageState extends State<StatementPage> {
                               color: Colors.orange.shade700, size: 48),
                           const SizedBox(height: 16),
                           Text(
-                            'No Transactions Found',
+                            localizations.noTransactionsFound,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -419,7 +429,7 @@ class _StatementPageState extends State<StatementPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'No transactions found for the selected period.\nPlease adjust your date range.',
+                            localizations.noTransactionsMessage,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.orange.shade700,
@@ -433,9 +443,9 @@ class _StatementPageState extends State<StatementPage> {
                     ElevatedButton.icon(
                       onPressed: _generatePdfStatement,
                       icon: const Icon(Icons.picture_as_pdf, size: 20),
-                      label: const Text(
-                        'DOWNLOAD PDF STATEMENT',
-                        style: TextStyle(
+                      label: Text(
+                        localizations.downloadPdfStatement,
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.5,
                         ),

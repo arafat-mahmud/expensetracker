@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/expense_model.dart';
+import '../l10n/app_localizations.dart';
 
 class ExpenseCard extends StatelessWidget {
   final Expense expense;
@@ -70,7 +71,8 @@ class ExpenseCard extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          expense.category,
+                          AppLocalizations.of(context)!
+                              .getCategoryName(expense.category),
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: categoryColor,

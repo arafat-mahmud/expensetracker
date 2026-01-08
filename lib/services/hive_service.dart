@@ -29,6 +29,9 @@ class HiveService {
     return Hive.box(settingsBoxName);
   }
 
+  // Static getter for settings box
+  static Box get settingsBox => getSettingsBox();
+
   // Add Expense
   static Future<void> addExpense(Expense expense) async {
     final box = getExpenseBox();

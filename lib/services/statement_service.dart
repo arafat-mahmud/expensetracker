@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:open_file/open_file.dart' show OpenFile, ResultType;
 import '../models/expense_model.dart';
+import '../l10n/app_localizations.dart';
 
 class StatementService {
   static Future<Directory> _getStorageDirectory() async {
@@ -59,6 +60,7 @@ class StatementService {
     required double totalExpense,
     required double balance,
     BuildContext? context,
+    AppLocalizations? localizations,
   }) async {
     final pdf = pw.Document();
 
@@ -73,7 +75,7 @@ class StatementService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
-        build: (pw.Context context) {
+        build: (pw.Context pdfContext) {
           return [
             // Professional Bank Header
             _buildProfessionalHeader(startDate, endDate),
@@ -104,7 +106,8 @@ class StatementService {
             ),
             pw.SizedBox(height: 12),
 
-            _buildProfessionalTransactionTable(transactions, openingBalance),
+            _buildProfessionalTransactionTable(
+                transactions, openingBalance, localizations),
 
             pw.SizedBox(height: 20),
 
@@ -332,6 +335,7 @@ class StatementService {
   static pw.Widget _buildProfessionalTransactionTable(
     List<Expense> transactions,
     double openingBalance,
+    AppLocalizations? localizations,
   ) {
     double runningBalance = openingBalance;
 
@@ -401,7 +405,10 @@ class StatementService {
                 DateFormat('dd/MM/yyyy').format(transaction.date),
               ),
               _buildProfessionalTableCell(transaction.title),
-              _buildProfessionalTableCell(transaction.category),
+              _buildProfessionalTableCell(
+                localizations?.getCategoryName(transaction.category) ??
+                    transaction.category,
+              ),
               _buildProfessionalTableCell(
                 transaction.isCredit
                     ? '-'
