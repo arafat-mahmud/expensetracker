@@ -6,6 +6,7 @@ import '../../providers/language_provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../widgets/deposit_profile_card.dart';
 import '../../widgets/goal_completed_dialog.dart';
+import '../../services/deposit_pdf_service.dart';
 import 'add_deposit_profile_page.dart';
 import 'deposit_profile_detail_page.dart';
 
@@ -40,6 +41,122 @@ class _DepositDashboardPageState extends State<DepositDashboardPage> {
     await depositProvider.restoreFromFirestore();
   }
 
+  Future<void> _downloadPdf() async {
+    final depositProvider =
+        Provider.of<DepositProvider>(context, listen: false);
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Generate PDF
+      await DepositPdfService.generateAndDownloadPdf(
+        profiles: depositProvider.profiles,
+        transactions: depositProvider.transactions,
+        totalBalance: depositProvider.totalBalance,
+        totalDeposited: depositProvider.totalDeposited,
+        totalWithdrawn: depositProvider.totalWithdrawn,
+      );
+
+      // Close loading indicator
+      if (mounted) Navigator.pop(context);
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('PDF downloaded successfully!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading indicator
+      if (mounted) Navigator.pop(context);
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 8),
+                Text('Error: ${e.toString()}'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _sharePdf() async {
+    final depositProvider =
+        Provider.of<DepositProvider>(context, listen: false);
+
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Generate and share PDF
+      await DepositPdfService.sharePdf(
+        profiles: depositProvider.profiles,
+        transactions: depositProvider.transactions,
+        totalBalance: depositProvider.totalBalance,
+        totalDeposited: depositProvider.totalDeposited,
+        totalWithdrawn: depositProvider.totalWithdrawn,
+      );
+
+      // Close loading indicator
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      // Close loading indicator
+      if (mounted) Navigator.pop(context);
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 8),
+                Text('Error: ${e.toString()}'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final depositProvider = Provider.of<DepositProvider>(context);
@@ -64,6 +181,42 @@ class _DepositDashboardPageState extends State<DepositDashboardPage> {
                       : Colors.black,
                 ),
         ),
+        actions: [
+          // PDF Download Menu
+          if (profiles.isNotEmpty)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (value) {
+                if (value == 'download') {
+                  _downloadPdf();
+                } else if (value == 'share') {
+                  _sharePdf();
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'download',
+                  child: Row(
+                    children: [
+                      Icon(Icons.download, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text('Download PDF'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'share',
+                  child: Row(
+                    children: [
+                      Icon(Icons.share, color: Colors.green),
+                      SizedBox(width: 8),
+                      Text('Share PDF'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _handleRefresh,
