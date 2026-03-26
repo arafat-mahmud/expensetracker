@@ -115,36 +115,38 @@ class FirestoreService {
   // Get all expenses from Firestore (cache-first strategy)
   Future<List<Expense>> getAllExpenses({bool forceServer = false}) async {
     try {
-      // Try cache first for faster loading
-      final source = forceServer ? Source.server : Source.cache;
-
-      try {
-        final snapshot =
-            await _getUserExpensesCollection().get(GetOptions(source: source));
-
-        if (snapshot.docs.isNotEmpty) {
-          return snapshot.docs
-              .map(
-                  (doc) => Expense.fromJson(doc.data() as Map<String, dynamic>))
-              .toList();
-        }
-      } catch (e) {
-        // Cache miss or error, fall through to server fetch
-        print('Cache miss, fetching from server...');
-      }
-
-      // Fallback to server if cache is empty or failed
+      // Try cache first for faster loading (unless forceServer is true)
       if (!forceServer) {
-        final snapshot = await _getUserExpensesCollection()
-            .get(GetOptions(source: Source.server));
-        return snapshot.docs
-            .map((doc) => Expense.fromJson(doc.data() as Map<String, dynamic>))
-            .toList();
+        try {
+          final cacheSnapshot = await _getUserExpensesCollection()
+              .get(GetOptions(source: Source.cache));
+
+          if (cacheSnapshot.docs.isNotEmpty) {
+            print(
+                '📦 [FIRESTORE] Loaded ${cacheSnapshot.docs.length} expenses from cache');
+            return cacheSnapshot.docs
+                .map((doc) =>
+                    Expense.fromJson(doc.data() as Map<String, dynamic>))
+                .toList();
+          }
+          print('📦 [FIRESTORE] Cache empty, fetching from server...');
+        } catch (e) {
+          // Cache miss or error, fall through to server fetch
+          print('📦 [FIRESTORE] Cache error: $e, fetching from server...');
+        }
       }
 
-      return [];
+      // Fetch from server (fallback or when forceServer = true)
+      final serverSnapshot = await _getUserExpensesCollection()
+          .get(GetOptions(source: Source.server));
+
+      print(
+          '☁️ [FIRESTORE] Loaded ${serverSnapshot.docs.length} expenses from server');
+      return serverSnapshot.docs
+          .map((doc) => Expense.fromJson(doc.data() as Map<String, dynamic>))
+          .toList();
     } catch (e) {
-      print('Error getting expenses from Firestore: $e');
+      print('❌ [FIRESTORE] Error getting expenses: $e');
       return [];
     }
   }
@@ -175,27 +177,35 @@ class FirestoreService {
   // Get settings from Firestore (cache-first strategy)
   Future<Map<String, dynamic>?> getSettings({bool forceServer = false}) async {
     try {
-      final source = forceServer ? Source.server : Source.cache;
+      // Try cache first for faster loading (unless forceServer is true)
+      if (!forceServer) {
+        try {
+          final cacheDoc = await _getUserSettingsDocument()
+              .get(GetOptions(source: Source.cache));
 
-      try {
-        final doc =
-            await _getUserSettingsDocument().get(GetOptions(source: source));
-        if (doc.exists) {
-          return doc.data() as Map<String, dynamic>?;
-        }
-      } catch (e) {
-        // Cache miss, try server
-        if (!forceServer) {
-          final doc = await _getUserSettingsDocument()
-              .get(GetOptions(source: Source.server));
-          if (doc.exists) {
-            return doc.data() as Map<String, dynamic>?;
+          if (cacheDoc.exists) {
+            print('📦 [FIRESTORE] Loaded settings from cache');
+            return cacheDoc.data() as Map<String, dynamic>?;
           }
+          print('📦 [FIRESTORE] Settings cache empty, fetching from server...');
+        } catch (e) {
+          print(
+              '📦 [FIRESTORE] Settings cache error: $e, fetching from server...');
         }
       }
+
+      // Fetch from server (fallback or when forceServer = true)
+      final serverDoc = await _getUserSettingsDocument()
+          .get(GetOptions(source: Source.server));
+
+      if (serverDoc.exists) {
+        print('☁️ [FIRESTORE] Loaded settings from server');
+        return serverDoc.data() as Map<String, dynamic>?;
+      }
+
       return null;
     } catch (e) {
-      print('Error getting settings from Firestore: $e');
+      print('❌ [FIRESTORE] Error getting settings: $e');
       return null;
     }
   }

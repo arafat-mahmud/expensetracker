@@ -122,35 +122,39 @@ class DepositFirestoreService {
   Future<List<DepositProfile>> getAllProfiles(
       {bool forceServer = false}) async {
     try {
-      final source = forceServer ? Source.server : Source.cache;
-
-      try {
-        final snapshot = await _getDepositProfilesCollection()
-            .get(GetOptions(source: source));
-
-        if (snapshot.docs.isNotEmpty || forceServer) {
-          return snapshot.docs
-              .map((doc) =>
-                  DepositProfile.fromJson(doc.data() as Map<String, dynamic>))
-              .toList();
-        }
-      } catch (e) {
-        // Cache miss or error
-      }
-
-      // Fallback to server if cache is empty
+      // Try cache first for faster loading (unless forceServer is true)
       if (!forceServer) {
-        final snapshot = await _getDepositProfilesCollection()
-            .get(GetOptions(source: Source.server));
-        return snapshot.docs
-            .map((doc) =>
-                DepositProfile.fromJson(doc.data() as Map<String, dynamic>))
-            .toList();
+        try {
+          final cacheSnapshot = await _getDepositProfilesCollection()
+              .get(GetOptions(source: Source.cache));
+
+          if (cacheSnapshot.docs.isNotEmpty) {
+            print(
+                '📦 [DEPOSIT_FIRESTORE] Loaded ${cacheSnapshot.docs.length} profiles from cache');
+            return cacheSnapshot.docs
+                .map((doc) =>
+                    DepositProfile.fromJson(doc.data() as Map<String, dynamic>))
+                .toList();
+          }
+          print('📦 [DEPOSIT_FIRESTORE] Cache empty, fetching from server...');
+        } catch (e) {
+          print(
+              '📦 [DEPOSIT_FIRESTORE] Cache error: $e, fetching from server...');
+        }
       }
 
-      return [];
+      // Fetch from server (fallback or when forceServer = true)
+      final serverSnapshot = await _getDepositProfilesCollection()
+          .get(GetOptions(source: Source.server));
+
+      print(
+          '☁️ [DEPOSIT_FIRESTORE] Loaded ${serverSnapshot.docs.length} profiles from server');
+      return serverSnapshot.docs
+          .map((doc) =>
+              DepositProfile.fromJson(doc.data() as Map<String, dynamic>))
+          .toList();
     } catch (e) {
-      print('Error getting deposit profiles from Firestore: $e');
+      print('❌ [DEPOSIT_FIRESTORE] Error getting deposit profiles: $e');
       return [];
     }
   }
@@ -209,35 +213,40 @@ class DepositFirestoreService {
   Future<List<DepositTransaction>> getAllTransactions(
       {bool forceServer = false}) async {
     try {
-      final source = forceServer ? Source.server : Source.cache;
-
-      try {
-        final snapshot = await _getDepositTransactionsCollection()
-            .get(GetOptions(source: source));
-
-        if (snapshot.docs.isNotEmpty || forceServer) {
-          return snapshot.docs
-              .map((doc) => DepositTransaction.fromJson(
-                  doc.data() as Map<String, dynamic>))
-              .toList();
-        }
-      } catch (e) {
-        // Cache miss or error
-      }
-
-      // Fallback to server if cache is empty
+      // Try cache first for faster loading (unless forceServer is true)
       if (!forceServer) {
-        final snapshot = await _getDepositTransactionsCollection()
-            .get(GetOptions(source: Source.server));
-        return snapshot.docs
-            .map((doc) =>
-                DepositTransaction.fromJson(doc.data() as Map<String, dynamic>))
-            .toList();
+        try {
+          final cacheSnapshot = await _getDepositTransactionsCollection()
+              .get(GetOptions(source: Source.cache));
+
+          if (cacheSnapshot.docs.isNotEmpty) {
+            print(
+                '📦 [DEPOSIT_FIRESTORE] Loaded ${cacheSnapshot.docs.length} transactions from cache');
+            return cacheSnapshot.docs
+                .map((doc) => DepositTransaction.fromJson(
+                    doc.data() as Map<String, dynamic>))
+                .toList();
+          }
+          print(
+              '📦 [DEPOSIT_FIRESTORE] Transaction cache empty, fetching from server...');
+        } catch (e) {
+          print(
+              '📦 [DEPOSIT_FIRESTORE] Transaction cache error: $e, fetching from server...');
+        }
       }
 
-      return [];
+      // Fetch from server (fallback or when forceServer = true)
+      final serverSnapshot = await _getDepositTransactionsCollection()
+          .get(GetOptions(source: Source.server));
+
+      print(
+          '☁️ [DEPOSIT_FIRESTORE] Loaded ${serverSnapshot.docs.length} transactions from server');
+      return serverSnapshot.docs
+          .map((doc) =>
+              DepositTransaction.fromJson(doc.data() as Map<String, dynamic>))
+          .toList();
     } catch (e) {
-      print('Error getting deposit transactions from Firestore: $e');
+      print('❌ [DEPOSIT_FIRESTORE] Error getting deposit transactions: $e');
       return [];
     }
   }
