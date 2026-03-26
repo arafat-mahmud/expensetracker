@@ -415,7 +415,7 @@ class DepositProfileDetailPage extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Delete Transaction'),
         content: Text(
-            'Are you sure you want to delete this ${transaction.isDeposit ? "deposit" : "withdrawal"} of ${transaction.amount.toStringAsFixed(2)}?'),
+            'Are you sure you want to delete this ${transaction.isDeposit ? "saving" : "withdrawal"} of ${transaction.amount.toStringAsFixed(2)}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

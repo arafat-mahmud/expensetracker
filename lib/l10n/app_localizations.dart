@@ -899,9 +899,9 @@ class EnglishLocalizations extends AppLocalizations {
   @override
   String get expenseMode => 'Expense Mode';
   @override
-  String get depositMode => 'Deposit Mode';
+  String get depositMode => 'Savings Mode';
   @override
-  String get switchToDepositMode => 'Switch to Deposit Mode';
+  String get switchToDepositMode => 'Switch to Savings Mode';
   @override
   String get switchToExpenseMode => 'Switch to Expense Mode';
   @override
@@ -923,11 +923,11 @@ class EnglishLocalizations extends AppLocalizations {
   @override
   String get daysRemaining => 'Days Left';
   @override
-  String get addDeposit => 'Add Deposit';
+  String get addDeposit => 'Add Savings';
   @override
   String get withdraw => 'Withdraw';
   @override
-  String get depositAmount => 'Deposit Amount';
+  String get depositAmount => 'Savings Amount';
   @override
   String get withdrawAmount => 'Withdraw Amount';
   @override
@@ -954,7 +954,7 @@ class EnglishLocalizations extends AppLocalizations {
   @override
   String get pleaseEnterName => 'Please enter a name';
   @override
-  String get depositAdded => 'Deposit added successfully!';
+  String get depositAdded => 'Savings added successfully!';
   @override
   String get withdrawCompleted => 'Withdrawal completed!';
   @override
@@ -964,14 +964,14 @@ class EnglishLocalizations extends AppLocalizations {
   @override
   String get insufficientBalance => 'Insufficient balance';
   @override
-  String get depositHistory => 'Deposit History';
+  String get depositHistory => 'Savings History';
   @override
   String get allProfiles => 'All Goals';
   @override
   String get noMatchingTransactions => 'No matching transactions found';
   @override
   String get startByAddingDeposit =>
-      'Start by adding a deposit to your savings goal';
+      'Start by adding savings to your goal';
 
   @override
   String getCategoryName(String category) {

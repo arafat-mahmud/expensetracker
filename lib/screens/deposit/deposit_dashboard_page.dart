@@ -455,7 +455,7 @@ class _DepositDashboardPageState extends State<DepositDashboardPage> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Deposited',
+                              'Saved',
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall

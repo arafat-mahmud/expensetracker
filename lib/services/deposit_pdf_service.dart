@@ -70,7 +70,7 @@ class DepositPdfService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            'Deposit Report',
+            'Savings Report',
             style: pw.TextStyle(
               font: fontBold,
               fontSize: 28,
@@ -125,7 +125,7 @@ class DepositPdfService {
               _buildSummaryItem(
                 font,
                 fontBold,
-                'Total Deposited',
+                'Total Saved',
                 '\$${totalDeposited.toStringAsFixed(2)}',
                 PdfColors.green,
               ),
@@ -314,7 +314,7 @@ class DepositPdfService {
                       font),
                   _buildTableCell(profile.name, font),
                   _buildTableCell(
-                    transaction.isDeposit ? 'Deposit' : 'Withdraw',
+                    transaction.isDeposit ? 'Saved' : 'Withdraw',
                     font,
                     color:
                         transaction.isDeposit ? PdfColors.green : PdfColors.red,
@@ -372,7 +372,7 @@ class DepositPdfService {
       ),
       child: pw.Center(
         child: pw.Text(
-          'Expense Tracker - Deposit Report',
+          'Expense Tracker - Savings Report',
           style:
               pw.TextStyle(font: font, fontSize: 10, color: PdfColors.grey600),
         ),
@@ -404,7 +404,7 @@ class DepositPdfService {
 
       // Create unique filename
       final fileName =
-          'Deposit_Report_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
+          'Savings_Report_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
       final file = File('${directory.path}/$fileName');
 
       // Save file
@@ -461,7 +461,7 @@ class DepositPdfService {
     await Printing.sharePdf(
       bytes: await pdf.save(),
       filename:
-          'Deposit_Report_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf',
+          'Savings_Report_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf',
     );
   }
 }
