@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/expense_model.dart';
 import '../services/hive_service.dart';
@@ -14,6 +15,11 @@ class ExpenseProvider with ChangeNotifier {
       FirestoreService(); // Firestore service
   final AuthService _authService = AuthService();
   String? _currentUserId; // Track current user to detect switches
+
+  // Debounce timer for auto-sync (reduces write operations)
+  Timer? _syncDebounceTimer;
+  static const Duration _syncDebounceDelay = Duration(seconds: 5);
+  bool _hasPendingChanges = false;
 
   List<Expense> get expenses => _expenses;
   DateTime get selectedMonth => _selectedMonth;
@@ -55,8 +61,43 @@ class ExpenseProvider with ChangeNotifier {
     });
   }
 
+  // Schedule debounced sync to reduce write operations
+  void _scheduleDebouncedSync() {
+    _hasPendingChanges = true;
+    _syncDebounceTimer?.cancel();
+    _syncDebounceTimer = Timer(_syncDebounceDelay, () {
+      if (_hasPendingChanges && _autoSync) {
+        _performDebouncedSync();
+      }
+    });
+  }
+
+  // Perform the actual sync after debounce delay
+  Future<void> _performDebouncedSync() async {
+    if (!_hasPendingChanges) return;
+
+    try {
+      print('🔄 [EXPENSE_PROVIDER] Performing debounced sync...');
+      final monthlyBudget = HiveService.getMonthlyBudget();
+      final success = await _firestoreService.backupExpenses(
+        _expenses,
+        monthlyBudget: monthlyBudget,
+      );
+
+      if (success) {
+        print('✅ [EXPENSE_PROVIDER] Debounced sync successful');
+        _lastBackupTime = DateTime.now();
+        _hasPendingChanges = false;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('❌ [EXPENSE_PROVIDER] Debounced sync failed: $e');
+    }
+  }
+
   // Clear data when user signs out
   void _clearDataOnSignOut() {
+    _syncDebounceTimer?.cancel();
     print('ExpenseProvider: Clearing data on sign out');
     _expenses = [];
     _lastBackupTime = null;
@@ -106,8 +147,7 @@ class ExpenseProvider with ChangeNotifier {
   // Load last backup time on initialization
   Future<void> _loadLastBackupTime() async {
     try {
-      _lastBackupTime = await _firestoreService
-          .getLastBackupTime(); // Changed from _driveService to _firestoreService
+      _lastBackupTime = await _firestoreService.getLastBackupTime();
       notifyListeners();
     } catch (e) {
       print('Failed to load last backup time: $e');
@@ -122,7 +162,7 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Add new expense
+  // Add new expense (optimized with debounced sync)
   Future<void> addExpense(Expense expense) async {
     await HiveService.addExpense(expense);
 
@@ -131,59 +171,13 @@ class ExpenseProvider with ChangeNotifier {
     _expenses.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
 
-    // Auto-backup to Firestore if enabled (in background) - was Google Drive
+    // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
-      try {
-        print('🚀 [EXPENSE_PROVIDER] Attempting Firestore backup...');
-        print('🚀 [EXPENSE_PROVIDER] Auto-sync enabled: $_autoSync');
-        print(
-            '🚀 [EXPENSE_PROVIDER] Total expenses to backup: ${_expenses.length}');
-        print(
-            '🚀 [EXPENSE_PROVIDER] Current user: ${_authService.getUserEmail()}');
-
-        final monthlyBudget = HiveService.getMonthlyBudget();
-        print('🚀 [EXPENSE_PROVIDER] Monthly budget: $monthlyBudget');
-
-        // First attempt backup to Firestore
-        print('🚀 [EXPENSE_PROVIDER] Starting first backup attempt...');
-        bool success = await _firestoreService.backupExpenses(_expenses,
-            monthlyBudget: monthlyBudget);
-
-        // If backup fails, try to ensure Firestore is ready and retry once
-        if (!success) {
-          print(
-              '⚠️ [EXPENSE_PROVIDER] Initial backup failed, ensuring Firestore readiness and retrying...');
-          final firestoreReady =
-              await _firestoreService.ensureFirestoreReadyAfterDeletion();
-          if (firestoreReady) {
-            print(
-                '🚀 [EXPENSE_PROVIDER] Firestore is ready, attempting second backup...');
-            success = await _firestoreService.backupExpenses(_expenses,
-                monthlyBudget: monthlyBudget);
-          } else {
-            print(
-                '❌ [EXPENSE_PROVIDER] Failed to prepare Firestore for backup');
-          }
-        }
-
-        if (success) {
-          print('✅ [EXPENSE_PROVIDER] Auto-backup to Firestore successful');
-          _lastBackupTime = DateTime.now();
-          notifyListeners(); // Update UI with new backup time
-        } else {
-          print(
-              '⚠️ [EXPENSE_PROVIDER] Auto-backup to Firestore failed after retry');
-        }
-      } catch (e, stackTrace) {
-        print('❌ [EXPENSE_PROVIDER] Failed to backup to Firestore: $e');
-        print('❌ [EXPENSE_PROVIDER] Stack trace: $stackTrace');
-      }
-    } else {
-      print('⚠️ [EXPENSE_PROVIDER] Auto-sync is disabled, skipping backup');
+      _scheduleDebouncedSync();
     }
   }
 
-  // Update expense
+  // Update expense (optimized with debounced sync)
   Future<void> updateExpense(Expense expense) async {
     await HiveService.updateExpense(expense);
 
@@ -192,55 +186,21 @@ class ExpenseProvider with ChangeNotifier {
     _expenses.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
 
-    // Auto-backup to Firestore if enabled (in background) - was Google Drive
+    // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
-      try {
-        print('Attempting Firestore backup after update...');
-        final monthlyBudget = HiveService.getMonthlyBudget();
-
-        // First attempt backup to Firestore
-        bool success = await _firestoreService.backupExpenses(_expenses,
-            monthlyBudget: monthlyBudget);
-
-        // If backup fails, try to ensure Firestore is ready and retry once
-        if (!success) {
-          print(
-              '⚠️ Initial backup failed, ensuring Firestore readiness and retrying...');
-          final firestoreReady =
-              await _firestoreService.ensureFirestoreReadyAfterDeletion();
-          if (firestoreReady) {
-            success = await _firestoreService.backupExpenses(_expenses,
-                monthlyBudget: monthlyBudget);
-          }
-        }
-
-        if (success) {
-          print('✅ Auto-backup to Firestore successful');
-          _lastBackupTime = DateTime.now();
-          notifyListeners(); // Update UI with new backup time
-        } else {
-          print('⚠️ Auto-backup to Firestore failed after retry');
-        }
-      } catch (e) {
-        print('❌ Failed to backup to Firestore: $e');
-      }
+      _scheduleDebouncedSync();
     }
   }
 
-  // Delete expense
+  // Delete expense (optimized - single Firestore delete)
   Future<void> deleteExpense(String id) async {
-    // Find the expense before deleting to have its data for Firestore
-    final expenseToDelete = _expenses.firstWhere((e) => e.id == id);
-
-    // Delete from local storage
+    // Delete from local storage first
     await HiveService.deleteExpense(id);
 
-    // Delete from Firestore if auto-sync is enabled
+    // Delete from Firestore if auto-sync is enabled (single operation)
     if (_autoSync) {
       try {
-        // Delete from both Firestore structures
         await _firestoreService.deleteExpense(id);
-        await _firestoreService.deleteExpenseByDate(expenseToDelete);
         print('✅ Deleted expense from Firestore: $id');
       } catch (e) {
         print('❌ Failed to delete from Firestore: $e');
@@ -471,30 +431,25 @@ class ExpenseProvider with ChangeNotifier {
 
   // Note: Firestore is used for both authentication and expense data storage
 
-  // Manual backup to Firestore (was Google Drive)
+  // Manual backup to Firestore (forces immediate sync)
   Future<bool> backupToFirestore() async {
     try {
+      // Cancel any pending debounced sync
+      _syncDebounceTimer?.cancel();
+      _hasPendingChanges = false;
+      
       final monthlyBudget = HiveService.getMonthlyBudget();
 
-      // First attempt backup
-      bool success = await _firestoreService.backupExpenses(_expenses,
-          monthlyBudget: monthlyBudget);
-
-      // If backup fails, try to ensure Firestore is ready and retry once
-      if (!success) {
-        print(
-            '⚠️ Manual backup failed, ensuring Firestore readiness and retrying...');
-        final firestoreReady =
-            await _firestoreService.ensureFirestoreReadyAfterDeletion();
-        if (firestoreReady) {
-          success = await _firestoreService.backupExpenses(_expenses,
-              monthlyBudget: monthlyBudget);
-        }
-      }
+      // Force immediate backup
+      final success = await _firestoreService.backupExpenses(
+        _expenses,
+        monthlyBudget: monthlyBudget,
+        force: true,
+      );
 
       if (success) {
         _lastBackupTime = DateTime.now();
-        notifyListeners(); // Update UI with new backup time
+        notifyListeners();
       }
       return success;
     } catch (e) {

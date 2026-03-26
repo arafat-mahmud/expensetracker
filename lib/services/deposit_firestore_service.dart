@@ -6,6 +6,10 @@ class DepositFirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService();
 
+  // Track last sync time to avoid redundant syncs
+  DateTime? _lastSyncTime;
+  static const Duration _minSyncInterval = Duration(seconds: 10);
+
   // Get user's deposit profiles collection
   CollectionReference _getDepositProfilesCollection() {
     final userId = _authService.getUserId();
@@ -39,6 +43,12 @@ class DepositFirestoreService {
     return _firestore.collection('users').doc(userId);
   }
 
+  // Check if sync is needed based on time interval
+  bool _shouldSync() {
+    if (_lastSyncTime == null) return true;
+    return DateTime.now().difference(_lastSyncTime!) > _minSyncInterval;
+  }
+
   // ========== PROFILE SYNC METHODS ==========
 
   // Sync profile to Firestore
@@ -53,17 +63,23 @@ class DepositFirestoreService {
     }
   }
 
-  // Sync all profiles to Firestore
+  // Sync all profiles to Firestore (with batch optimization)
   Future<void> syncAllProfiles(List<DepositProfile> profiles) async {
     try {
-      final batch = _firestore.batch();
-      final collection = _getDepositProfilesCollection();
+      const batchSize = 450;
 
-      for (var profile in profiles) {
-        batch.set(collection.doc(profile.id), profile.toJson());
+      for (var i = 0; i < profiles.length; i += batchSize) {
+        final batch = _firestore.batch();
+        final collection = _getDepositProfilesCollection();
+        final end =
+            (i + batchSize < profiles.length) ? i + batchSize : profiles.length;
+
+        for (var j = i; j < end; j++) {
+          batch.set(collection.doc(profiles[j].id), profiles[j].toJson());
+        }
+
+        await batch.commit();
       }
-
-      await batch.commit();
     } catch (e) {
       print('Error syncing all deposit profiles to Firestore: $e');
       rethrow;
@@ -75,30 +91,55 @@ class DepositFirestoreService {
     try {
       await _getDepositProfilesCollection().doc(profileId).delete();
 
-      // Also delete all transactions for this profile
+      // Also delete all transactions for this profile using batch
       final transactionsSnapshot = await _getDepositTransactionsCollection()
           .where('profileId', isEqualTo: profileId)
           .get();
 
-      final batch = _firestore.batch();
-      for (var doc in transactionsSnapshot.docs) {
-        batch.delete(doc.reference);
+      if (transactionsSnapshot.docs.isNotEmpty) {
+        final batch = _firestore.batch();
+        for (var doc in transactionsSnapshot.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
       }
-      await batch.commit();
     } catch (e) {
       print('Error deleting deposit profile from Firestore: $e');
       rethrow;
     }
   }
 
-  // Get all profiles from Firestore
-  Future<List<DepositProfile>> getAllProfiles() async {
+  // Get all profiles from Firestore (cache-first strategy)
+  Future<List<DepositProfile>> getAllProfiles(
+      {bool forceServer = false}) async {
     try {
-      final snapshot = await _getDepositProfilesCollection().get();
-      return snapshot.docs
-          .map((doc) =>
-              DepositProfile.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
+      final source = forceServer ? Source.server : Source.cache;
+
+      try {
+        final snapshot = await _getDepositProfilesCollection()
+            .get(GetOptions(source: source));
+
+        if (snapshot.docs.isNotEmpty || forceServer) {
+          return snapshot.docs
+              .map((doc) =>
+                  DepositProfile.fromJson(doc.data() as Map<String, dynamic>))
+              .toList();
+        }
+      } catch (e) {
+        // Cache miss or error
+      }
+
+      // Fallback to server if cache is empty
+      if (!forceServer) {
+        final snapshot = await _getDepositProfilesCollection()
+            .get(GetOptions(source: Source.server));
+        return snapshot.docs
+            .map((doc) =>
+                DepositProfile.fromJson(doc.data() as Map<String, dynamic>))
+            .toList();
+      }
+
+      return [];
     } catch (e) {
       print('Error getting deposit profiles from Firestore: $e');
       return [];
@@ -119,18 +160,26 @@ class DepositFirestoreService {
     }
   }
 
-  // Sync all transactions to Firestore
+  // Sync all transactions to Firestore (with batch optimization)
   Future<void> syncAllTransactions(
       List<DepositTransaction> transactions) async {
     try {
-      final batch = _firestore.batch();
-      final collection = _getDepositTransactionsCollection();
+      const batchSize = 450;
 
-      for (var transaction in transactions) {
-        batch.set(collection.doc(transaction.id), transaction.toJson());
+      for (var i = 0; i < transactions.length; i += batchSize) {
+        final batch = _firestore.batch();
+        final collection = _getDepositTransactionsCollection();
+        final end = (i + batchSize < transactions.length)
+            ? i + batchSize
+            : transactions.length;
+
+        for (var j = i; j < end; j++) {
+          batch.set(
+              collection.doc(transactions[j].id), transactions[j].toJson());
+        }
+
+        await batch.commit();
       }
-
-      await batch.commit();
     } catch (e) {
       print('Error syncing all deposit transactions to Firestore: $e');
       rethrow;
@@ -147,14 +196,37 @@ class DepositFirestoreService {
     }
   }
 
-  // Get all transactions from Firestore
-  Future<List<DepositTransaction>> getAllTransactions() async {
+  // Get all transactions from Firestore (cache-first strategy)
+  Future<List<DepositTransaction>> getAllTransactions(
+      {bool forceServer = false}) async {
     try {
-      final snapshot = await _getDepositTransactionsCollection().get();
-      return snapshot.docs
-          .map((doc) =>
-              DepositTransaction.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
+      final source = forceServer ? Source.server : Source.cache;
+
+      try {
+        final snapshot = await _getDepositTransactionsCollection()
+            .get(GetOptions(source: source));
+
+        if (snapshot.docs.isNotEmpty || forceServer) {
+          return snapshot.docs
+              .map((doc) => DepositTransaction.fromJson(
+                  doc.data() as Map<String, dynamic>))
+              .toList();
+        }
+      } catch (e) {
+        // Cache miss or error
+      }
+
+      // Fallback to server if cache is empty
+      if (!forceServer) {
+        final snapshot = await _getDepositTransactionsCollection()
+            .get(GetOptions(source: Source.server));
+        return snapshot.docs
+            .map((doc) =>
+                DepositTransaction.fromJson(doc.data() as Map<String, dynamic>))
+            .toList();
+      }
+
+      return [];
     } catch (e) {
       print('Error getting deposit transactions from Firestore: $e');
       return [];
@@ -178,12 +250,18 @@ class DepositFirestoreService {
     }
   }
 
-  // ========== BACKUP & RESTORE METHODS ==========
+  // ========== BACKUP & RESTORE METHODS (optimized) ==========
 
   // Backup all deposit data to Firestore
   Future<bool> backupDepositData(List<DepositProfile> profiles,
-      List<DepositTransaction> transactions) async {
+      List<DepositTransaction> transactions, {bool force = false}) async {
     try {
+      // Skip backup if recently synced and not forced
+      if (!force && !_shouldSync()) {
+        print('⏭️ [DEPOSIT_BACKUP] Skipping backup - recently synced');
+        return true;
+      }
+
       print(
           '💾 [DEPOSIT_BACKUP] Starting backup: ${profiles.length} profiles, ${transactions.length} transactions...');
 
@@ -202,6 +280,7 @@ class DepositFirestoreService {
         'depositTransactionsCount': transactions.length,
       }, SetOptions(merge: true));
 
+      _lastSyncTime = DateTime.now();
       print('✅ [DEPOSIT_BACKUP] Backup completed successfully!');
       return true;
     } catch (e, stackTrace) {
@@ -211,15 +290,21 @@ class DepositFirestoreService {
     }
   }
 
-  // Restore all deposit data from Firestore
-  Future<Map<String, dynamic>?> restoreDepositData() async {
+  // Restore all deposit data from Firestore (cache-first)
+  Future<Map<String, dynamic>?> restoreDepositData({bool forceServer = false}) async {
     try {
       print('📥 [DEPOSIT_RESTORE] Starting restore...');
 
-      final profiles = await getAllProfiles();
-      final transactions = await getAllTransactions();
+      // Use cache-first strategy
+      final profiles = await getAllProfiles(forceServer: forceServer);
+      final transactions = await getAllTransactions(forceServer: forceServer);
 
       if (profiles.isEmpty && transactions.isEmpty) {
+        // If cache is empty, try server
+        if (!forceServer) {
+          print('📥 [DEPOSIT_RESTORE] Cache empty, trying server...');
+          return await restoreDepositData(forceServer: true);
+        }
         print('ℹ️ [DEPOSIT_RESTORE] No backup data found');
         return null;
       }
@@ -237,27 +322,44 @@ class DepositFirestoreService {
     }
   }
 
-  // Delete all deposit backup data from Firestore
+  // Delete all deposit backup data from Firestore (with batch optimization)
   Future<bool> deleteAllDepositBackupData() async {
     try {
       print('🗑️ [DEPOSIT_DELETE] Deleting all deposit backup data...');
 
-      // Delete all profiles
+      // Delete all profiles using batches
       final profilesSnapshot = await _getDepositProfilesCollection().get();
-      final profilesBatch = _firestore.batch();
-      for (var doc in profilesSnapshot.docs) {
-        profilesBatch.delete(doc.reference);
+      if (profilesSnapshot.docs.isNotEmpty) {
+        const batchSize = 450;
+        for (var i = 0; i < profilesSnapshot.docs.length; i += batchSize) {
+          final batch = _firestore.batch();
+          final end = (i + batchSize < profilesSnapshot.docs.length) 
+              ? i + batchSize 
+              : profilesSnapshot.docs.length;
+          
+          for (var j = i; j < end; j++) {
+            batch.delete(profilesSnapshot.docs[j].reference);
+          }
+          await batch.commit();
+        }
       }
-      await profilesBatch.commit();
 
-      // Delete all transactions
-      final transactionsSnapshot =
-          await _getDepositTransactionsCollection().get();
-      final transactionsBatch = _firestore.batch();
-      for (var doc in transactionsSnapshot.docs) {
-        transactionsBatch.delete(doc.reference);
+      // Delete all transactions using batches
+      final transactionsSnapshot = await _getDepositTransactionsCollection().get();
+      if (transactionsSnapshot.docs.isNotEmpty) {
+        const batchSize = 450;
+        for (var i = 0; i < transactionsSnapshot.docs.length; i += batchSize) {
+          final batch = _firestore.batch();
+          final end = (i + batchSize < transactionsSnapshot.docs.length) 
+              ? i + batchSize 
+              : transactionsSnapshot.docs.length;
+          
+          for (var j = i; j < end; j++) {
+            batch.delete(transactionsSnapshot.docs[j].reference);
+          }
+          await batch.commit();
+        }
       }
-      await transactionsBatch.commit();
 
       print('✅ [DEPOSIT_DELETE] All deposit backup data deleted');
       return true;

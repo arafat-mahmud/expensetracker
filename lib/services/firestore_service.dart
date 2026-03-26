@@ -6,6 +6,10 @@ class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AuthService _authService = AuthService();
 
+  // Track last sync time to avoid redundant syncs
+  DateTime? _lastSyncTime;
+  static const Duration _minSyncInterval = Duration(seconds: 10);
+
   // Get user's expenses collection
   CollectionReference _getUserExpensesCollection() {
     final userId = _authService.getUserId();
@@ -49,64 +53,89 @@ class FirestoreService {
     return _firestore.collection('users').doc(userId);
   }
 
-  // Sync expense to Firestore
-  // Now syncs to BOTH flat and date-wise structures
+  // Sync single expense to Firestore (optimized - only flat structure)
   Future<void> syncExpense(Expense expense) async {
     try {
-      // Sync to flat structure (existing)
+      // Only sync to flat structure to reduce write operations
       await _getUserExpensesCollection().doc(expense.id).set(expense.toJson());
-
-      // Sync to date-wise structure (NEW)
-      await syncExpenseByDate(expense);
     } catch (e) {
       print('Error syncing expense to Firestore: $e');
       rethrow;
     }
   }
 
-  // Sync all expenses to Firestore
-  // Now syncs to BOTH flat and date-wise structures
+  // Check if sync is needed based on time interval
+  bool _shouldSync() {
+    if (_lastSyncTime == null) return true;
+    return DateTime.now().difference(_lastSyncTime!) > _minSyncInterval;
+  }
+
+  // Sync all expenses to Firestore (optimized - only flat structure with batch)
   Future<void> syncAllExpenses(List<Expense> expenses) async {
     try {
-      final batch = _firestore.batch();
-      final collection = _getUserExpensesCollection();
-
-      for (var expense in expenses) {
-        batch.set(collection.doc(expense.id), expense.toJson());
+      // Use WriteBatch for efficient bulk operations
+      // Firestore allows max 500 operations per batch
+      const batchSize = 450;
+      
+      for (var i = 0; i < expenses.length; i += batchSize) {
+        final batch = _firestore.batch();
+        final collection = _getUserExpensesCollection();
+        final end = (i + batchSize < expenses.length) ? i + batchSize : expenses.length;
+        
+        for (var j = i; j < end; j++) {
+          batch.set(collection.doc(expenses[j].id), expenses[j].toJson());
+        }
+        
+        await batch.commit();
       }
-
-      await batch.commit();
-
-      // Also sync to date-wise structure
-      await syncAllExpensesByDate(expenses);
+      
+      _lastSyncTime = DateTime.now();
     } catch (e) {
       print('Error syncing all expenses to Firestore: $e');
       rethrow;
     }
   }
 
-  // Delete expense from Firestore
-  // Now deletes from BOTH structures
+  // Delete expense from Firestore (optimized - only flat structure)
   Future<void> deleteExpense(String expenseId) async {
     try {
-      // Delete from flat structure
       await _getUserExpensesCollection().doc(expenseId).delete();
-
-      // Note: For date-wise structure, we need the full expense object to know the date
-      // The deleteExpenseByDate method should be called separately with the expense object
     } catch (e) {
       print('Error deleting expense from Firestore: $e');
       rethrow;
     }
   }
 
-  // Get all expenses from Firestore
-  Future<List<Expense>> getAllExpenses() async {
+  // Get all expenses from Firestore (cache-first strategy)
+  Future<List<Expense>> getAllExpenses({bool forceServer = false}) async {
     try {
-      final snapshot = await _getUserExpensesCollection().get();
-      return snapshot.docs
-          .map((doc) => Expense.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
+      // Try cache first for faster loading
+      final source = forceServer ? Source.server : Source.cache;
+      
+      try {
+        final snapshot = await _getUserExpensesCollection()
+            .get(GetOptions(source: source));
+        
+        if (snapshot.docs.isNotEmpty) {
+          return snapshot.docs
+              .map((doc) => Expense.fromJson(doc.data() as Map<String, dynamic>))
+              .toList();
+        }
+      } catch (e) {
+        // Cache miss or error, fall through to server fetch
+        print('Cache miss, fetching from server...');
+      }
+      
+      // Fallback to server if cache is empty or failed
+      if (!forceServer) {
+        final snapshot = await _getUserExpensesCollection()
+            .get(GetOptions(source: Source.server));
+        return snapshot.docs
+            .map((doc) => Expense.fromJson(doc.data() as Map<String, dynamic>))
+            .toList();
+      }
+      
+      return [];
     } catch (e) {
       print('Error getting expenses from Firestore: $e');
       return [];
@@ -136,12 +165,26 @@ class FirestoreService {
     }
   }
 
-  // Get settings from Firestore
-  Future<Map<String, dynamic>?> getSettings() async {
+  // Get settings from Firestore (cache-first strategy)
+  Future<Map<String, dynamic>?> getSettings({bool forceServer = false}) async {
     try {
-      final doc = await _getUserSettingsDocument().get();
-      if (doc.exists) {
-        return doc.data() as Map<String, dynamic>?;
+      final source = forceServer ? Source.server : Source.cache;
+      
+      try {
+        final doc = await _getUserSettingsDocument()
+            .get(GetOptions(source: source));
+        if (doc.exists) {
+          return doc.data() as Map<String, dynamic>?;
+        }
+      } catch (e) {
+        // Cache miss, try server
+        if (!forceServer) {
+          final doc = await _getUserSettingsDocument()
+              .get(GetOptions(source: Source.server));
+          if (doc.exists) {
+            return doc.data() as Map<String, dynamic>?;
+          }
+        }
       }
       return null;
     } catch (e) {
@@ -150,18 +193,26 @@ class FirestoreService {
     }
   }
 
-  // Clear all user data from Firestore
+  // Clear all user data from Firestore (with batch optimization)
   Future<void> clearAllData() async {
     try {
       final collection = _getUserExpensesCollection();
       final snapshot = await collection.get();
 
-      final batch = _firestore.batch();
-      for (var doc in snapshot.docs) {
-        batch.delete(doc.reference);
+      // Use batches of 450 to stay under 500 limit
+      const batchSize = 450;
+      final docs = snapshot.docs;
+      
+      for (var i = 0; i < docs.length; i += batchSize) {
+        final batch = _firestore.batch();
+        final end = (i + batchSize < docs.length) ? i + batchSize : docs.length;
+        
+        for (var j = i; j < end; j++) {
+          batch.delete(docs[j].reference);
+        }
+        
+        await batch.commit();
       }
-
-      await batch.commit();
     } catch (e) {
       print('Error clearing data from Firestore: $e');
       rethrow;
@@ -184,27 +235,24 @@ class FirestoreService {
     }
   }
 
-  // ========== NEW BACKUP & RESTORE METHODS (replacing Google Drive) ==========
+  // ========== OPTIMIZED BACKUP & RESTORE METHODS ==========
 
-  // Backup expenses to Firestore (replacement for Google Drive backup)
-  // Now supports BOTH flat structure AND date-wise organization
+  // Backup expenses to Firestore (optimized - single structure only)
   Future<bool> backupExpenses(List<Expense> expenses,
-      {double? monthlyBudget}) async {
+      {double? monthlyBudget, bool force = false}) async {
     try {
-      print(
-          '💾 [FIRESTORE_BACKUP] Starting Firestore backup for ${expenses.length} expenses...');
-      print('💾 [FIRESTORE_BACKUP] User ID: ${_authService.getUserId()}');
-      print('💾 [FIRESTORE_BACKUP] User email: ${_authService.getUserEmail()}');
-      print('💾 [FIRESTORE_BACKUP] Monthly budget: $monthlyBudget');
+      // Skip backup if recently synced and not forced
+      if (!force && !_shouldSync()) {
+        print('⏭️ [FIRESTORE_BACKUP] Skipping backup - recently synced');
+        return true;
+      }
 
-      // Sync to BOTH structures for compatibility
-      // 1. Flat structure (existing): users/{userId}/expenses/{expenseId}
+      print(
+          '💾 [FIRESTORE_BACKUP] Starting optimized backup for ${expenses.length} expenses...');
+
+      // Only sync to flat structure to reduce write operations by 50%
       await syncAllExpenses(expenses);
       print('✅ [FIRESTORE_BACKUP] Synced to flat structure');
-
-      // 2. Date-wise structure (NEW): users/{userId}/expenses_by_date/{date}/items/{expenseId}
-      await syncAllExpensesByDate(expenses);
-      print('✅ [FIRESTORE_BACKUP] Synced to date-wise structure');
 
       // Save backup metadata and settings
       await _getUserSettingsDocument().set({
@@ -214,11 +262,11 @@ class FirestoreService {
         'userId': _authService.getUserId(),
         'userEmail': _authService.getUserEmail(),
         'expensesCount': expenses.length,
-        'usesDateWiseStructure': true, // Flag to indicate date-wise support
       }, SetOptions(merge: true));
 
+      _lastSyncTime = DateTime.now();
       print(
-          '✅ [FIRESTORE_BACKUP] Backup completed successfully! ${expenses.length} expenses backed up to both structures');
+          '✅ [FIRESTORE_BACKUP] Backup completed successfully! ${expenses.length} expenses backed up');
       return true;
     } catch (e, stackTrace) {
       print('❌ [FIRESTORE_BACKUP] Error backing up to Firestore: $e');
@@ -227,38 +275,22 @@ class FirestoreService {
     }
   }
 
-  // Restore expenses from Firestore (replacement for Google Drive restore)
-  // Now tries date-wise structure first, falls back to flat structure
-  Future<Map<String, dynamic>?> restoreExpenses() async {
+  // Restore expenses from Firestore (cache-first strategy)
+  Future<Map<String, dynamic>?> restoreExpenses({bool forceServer = false}) async {
     try {
       print('📥 [FIRESTORE_RESTORE] Starting Firestore restore...');
 
-      List<Expense> expenses = [];
-
-      // Check which structure to use
-      final settings = await getSettings();
-      final usesDateWise = settings?['usesDateWiseStructure'] as bool? ?? false;
-
-      if (usesDateWise) {
-        // Try date-wise structure first (NEW)
-        print('📥 [FIRESTORE_RESTORE] Using date-wise structure...');
-        expenses = await getAllExpensesByDate();
-
-        // If empty, fallback to flat structure
-        if (expenses.isEmpty) {
-          print(
-              '📥 [FIRESTORE_RESTORE] Date-wise empty, trying flat structure...');
-          expenses = await getAllExpenses();
-        }
-      } else {
-        // Use flat structure (existing)
-        print('📥 [FIRESTORE_RESTORE] Using flat structure...');
-        expenses = await getAllExpenses();
-      }
-
+      // Use cache-first strategy for faster loading
+      List<Expense> expenses = await getAllExpenses(forceServer: forceServer);
+      final settings = await getSettings(forceServer: forceServer);
       final monthlyBudget = settings?['monthlyBudget'] as double?;
 
       if (expenses.isEmpty && monthlyBudget == null) {
+        // If cache is empty, try server
+        if (!forceServer) {
+          print('📥 [FIRESTORE_RESTORE] Cache empty, trying server...');
+          return await restoreExpenses(forceServer: true);
+        }
         print('ℹ️ [FIRESTORE_RESTORE] No backup data found');
         return null;
       }
@@ -292,27 +324,23 @@ class FirestoreService {
     }
   }
 
-  // Delete all backup data from Firestore (replacement for Google Drive delete)
-  // Now deletes from BOTH structures
+  // Delete all backup data from Firestore (optimized - flat structure only)
   Future<bool> deleteAllBackupFiles() async {
     try {
       print(
           '🗑️ [FIRESTORE_DELETE] Starting deletion of all backup data from Firestore...');
       final stopwatch = Stopwatch()..start();
 
-      // Clear flat structure expenses
+      // Clear flat structure expenses only (reduced operations)
       await clearAllData();
-      print('✅ [FIRESTORE_DELETE] Cleared flat structure');
-
-      // Clear date-wise structure expenses
-      await clearAllExpensesByDate();
-      print('✅ [FIRESTORE_DELETE] Cleared date-wise structure');
+      print('✅ [FIRESTORE_DELETE] Cleared expenses');
 
       // Clear settings document (but keep the document itself)
       await _getUserSettingsDocument().set({
         'deletedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: false));
 
+      _lastSyncTime = null;
       stopwatch.stop();
       print(
           '✅ [FIRESTORE_DELETE] Deletion completed in ${stopwatch.elapsedMilliseconds}ms');

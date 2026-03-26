@@ -6,9 +6,7 @@ import '../services/firestore_service.dart';
 class BudgetProvider with ChangeNotifier {
   double _monthlyBudget = 10000.0;
   final AuthService _authService = AuthService();
-// Keep for reference
-  final FirestoreService _firestoreService =
-      FirestoreService(); // NEW: Firestore service
+  final FirestoreService _firestoreService = FirestoreService();
   String? _currentUserId;
 
   double get monthlyBudget => _monthlyBudget;
@@ -48,18 +46,18 @@ class BudgetProvider with ChangeNotifier {
     print('✅ BudgetProvider: Budget reloaded: $_monthlyBudget');
   }
 
+  // Set budget (optimized - only syncs settings, not all expenses)
   Future<void> setMonthlyBudget(double budget) async {
     _monthlyBudget = budget;
     await HiveService.setMonthlyBudget(budget);
     notifyListeners();
 
-    // Backup to Firestore immediately (was Google Drive)
+    // Only sync the budget setting, not all expenses (reduces writes significantly)
     try {
-      final expenses = HiveService.getAllExpenses();
-      await _firestoreService.backupExpenses(expenses, monthlyBudget: budget);
-      print('✅ Budget backed up to Firestore: $budget');
+      await _firestoreService.syncSettings(budget, HiveService.getDarkMode());
+      print('✅ Budget synced to Firestore: $budget');
     } catch (e) {
-      print('⚠️ Failed to backup budget to Firestore: $e');
+      print('⚠️ Failed to sync budget to Firestore: $e');
     }
   }
 

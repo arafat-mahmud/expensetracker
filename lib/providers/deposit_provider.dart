@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/deposit_model.dart';
 import '../services/hive_service.dart';
@@ -12,6 +13,11 @@ class DepositProvider with ChangeNotifier {
   final DepositFirestoreService _firestoreService = DepositFirestoreService();
   final AuthService _authService = AuthService();
   String? _currentUserId;
+
+  // Debounce timer for auto-sync (reduces write operations)
+  Timer? _syncDebounceTimer;
+  static const Duration _syncDebounceDelay = Duration(seconds: 5);
+  bool _hasPendingChanges = false;
 
   // Callback for when a goal is completed (for showing celebration dialog)
   Function(DepositProfile)? onGoalCompleted;
@@ -49,7 +55,41 @@ class DepositProvider with ChangeNotifier {
     });
   }
 
+  // Schedule debounced sync to reduce write operations
+  void _scheduleDebouncedSync() {
+    _hasPendingChanges = true;
+    _syncDebounceTimer?.cancel();
+    _syncDebounceTimer = Timer(_syncDebounceDelay, () {
+      if (_hasPendingChanges && _autoSync) {
+        _performDebouncedSync();
+      }
+    });
+  }
+
+  // Perform the actual sync after debounce delay
+  Future<void> _performDebouncedSync() async {
+    if (!_hasPendingChanges) return;
+
+    try {
+      print('🔄 [DEPOSIT_PROVIDER] Performing debounced sync...');
+      final success = await _firestoreService.backupDepositData(
+        _profiles,
+        _transactions,
+      );
+
+      if (success) {
+        print('✅ [DEPOSIT_PROVIDER] Debounced sync successful');
+        _lastBackupTime = DateTime.now();
+        _hasPendingChanges = false;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('❌ [DEPOSIT_PROVIDER] Debounced sync failed: $e');
+    }
+  }
+
   void _clearDataOnSignOut() {
+    _syncDebounceTimer?.cancel();
     print('DepositProvider: Clearing data on sign out');
     _profiles = [];
     _transactions = [];
@@ -71,8 +111,8 @@ class DepositProvider with ChangeNotifier {
       print('No local deposit data found, attempting restore...');
       await restoreFromFirestore();
     } else {
-      print('Local deposit data found, backing up...');
-      await backupToFirestore();
+      print('Local deposit data found, scheduling backup...');
+      _scheduleDebouncedSync();
     }
   }
 
@@ -100,19 +140,15 @@ class DepositProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // ========== PROFILE CRUD ==========
+  // ========== PROFILE CRUD (optimized with debounced sync) ==========
 
   Future<void> addProfile(DepositProfile profile) async {
     await HiveService.addDepositProfile(profile);
     loadData();
 
+    // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
-      try {
-        await _firestoreService.syncProfile(profile);
-        print('✅ Profile synced to Firestore');
-      } catch (e) {
-        print('❌ Failed to sync profile: $e');
-      }
+      _scheduleDebouncedSync();
     }
   }
 
@@ -120,13 +156,9 @@ class DepositProvider with ChangeNotifier {
     await HiveService.updateDepositProfile(profile);
     loadData();
 
+    // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
-      try {
-        await _firestoreService.syncProfile(profile);
-        print('✅ Profile updated in Firestore');
-      } catch (e) {
-        print('❌ Failed to update profile in Firestore: $e');
-      }
+      _scheduleDebouncedSync();
     }
   }
 
@@ -134,6 +166,7 @@ class DepositProvider with ChangeNotifier {
     await HiveService.deleteDepositProfile(profileId);
     loadData();
 
+    // Delete from Firestore immediately (delete operations are cheap)
     if (_autoSync) {
       try {
         await _firestoreService.deleteProfile(profileId);
@@ -144,7 +177,7 @@ class DepositProvider with ChangeNotifier {
     }
   }
 
-  // ========== TRANSACTION CRUD ==========
+  // ========== TRANSACTION CRUD (optimized with debounced sync) ==========
 
   Future<void> addTransaction(DepositTransaction transaction) async {
     await HiveService.addDepositTransaction(transaction);
@@ -156,13 +189,9 @@ class DepositProvider with ChangeNotifier {
       await checkAndUpdateCompletion(profile);
     }
 
+    // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
-      try {
-        await _firestoreService.syncTransaction(transaction);
-        print('✅ Transaction synced to Firestore');
-      } catch (e) {
-        print('❌ Failed to sync transaction: $e');
-      }
+      _scheduleDebouncedSync();
     }
   }
 
