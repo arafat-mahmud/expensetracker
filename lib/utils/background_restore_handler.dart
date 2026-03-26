@@ -40,7 +40,9 @@ class BackgroundRestoreHandler {
           budgetProvider.reloadBudget();
 
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            // Show success message with manual dismiss option
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+            scaffoldMessenger.showSnackBar(
               SnackBar(
                 content: Row(
                   children: [
@@ -56,13 +58,15 @@ class BackgroundRestoreHandler {
                   ],
                 ),
                 backgroundColor: Colors.green,
-                duration: const Duration(seconds: 4),
+                duration: const Duration(
+                    seconds: 10), // Extended duration for user to read
                 behavior: SnackBarBehavior.floating,
                 action: SnackBarAction(
                   label: 'OK',
                   textColor: Colors.white,
                   onPressed: () {
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    // Explicitly dismiss the current snackbar
+                    scaffoldMessenger.hideCurrentSnackBar();
                   },
                 ),
               ),
