@@ -437,7 +437,7 @@ class ExpenseProvider with ChangeNotifier {
       // Cancel any pending debounced sync
       _syncDebounceTimer?.cancel();
       _hasPendingChanges = false;
-      
+
       final monthlyBudget = HiveService.getMonthlyBudget();
 
       // Force immediate backup

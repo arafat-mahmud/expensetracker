@@ -76,19 +76,20 @@ class FirestoreService {
       // Use WriteBatch for efficient bulk operations
       // Firestore allows max 500 operations per batch
       const batchSize = 450;
-      
+
       for (var i = 0; i < expenses.length; i += batchSize) {
         final batch = _firestore.batch();
         final collection = _getUserExpensesCollection();
-        final end = (i + batchSize < expenses.length) ? i + batchSize : expenses.length;
-        
+        final end =
+            (i + batchSize < expenses.length) ? i + batchSize : expenses.length;
+
         for (var j = i; j < end; j++) {
           batch.set(collection.doc(expenses[j].id), expenses[j].toJson());
         }
-        
+
         await batch.commit();
       }
-      
+
       _lastSyncTime = DateTime.now();
     } catch (e) {
       print('Error syncing all expenses to Firestore: $e');
@@ -111,21 +112,22 @@ class FirestoreService {
     try {
       // Try cache first for faster loading
       final source = forceServer ? Source.server : Source.cache;
-      
+
       try {
-        final snapshot = await _getUserExpensesCollection()
-            .get(GetOptions(source: source));
-        
+        final snapshot =
+            await _getUserExpensesCollection().get(GetOptions(source: source));
+
         if (snapshot.docs.isNotEmpty) {
           return snapshot.docs
-              .map((doc) => Expense.fromJson(doc.data() as Map<String, dynamic>))
+              .map(
+                  (doc) => Expense.fromJson(doc.data() as Map<String, dynamic>))
               .toList();
         }
       } catch (e) {
         // Cache miss or error, fall through to server fetch
         print('Cache miss, fetching from server...');
       }
-      
+
       // Fallback to server if cache is empty or failed
       if (!forceServer) {
         final snapshot = await _getUserExpensesCollection()
@@ -134,7 +136,7 @@ class FirestoreService {
             .map((doc) => Expense.fromJson(doc.data() as Map<String, dynamic>))
             .toList();
       }
-      
+
       return [];
     } catch (e) {
       print('Error getting expenses from Firestore: $e');
@@ -169,10 +171,10 @@ class FirestoreService {
   Future<Map<String, dynamic>?> getSettings({bool forceServer = false}) async {
     try {
       final source = forceServer ? Source.server : Source.cache;
-      
+
       try {
-        final doc = await _getUserSettingsDocument()
-            .get(GetOptions(source: source));
+        final doc =
+            await _getUserSettingsDocument().get(GetOptions(source: source));
         if (doc.exists) {
           return doc.data() as Map<String, dynamic>?;
         }
@@ -202,15 +204,15 @@ class FirestoreService {
       // Use batches of 450 to stay under 500 limit
       const batchSize = 450;
       final docs = snapshot.docs;
-      
+
       for (var i = 0; i < docs.length; i += batchSize) {
         final batch = _firestore.batch();
         final end = (i + batchSize < docs.length) ? i + batchSize : docs.length;
-        
+
         for (var j = i; j < end; j++) {
           batch.delete(docs[j].reference);
         }
-        
+
         await batch.commit();
       }
     } catch (e) {
@@ -276,7 +278,8 @@ class FirestoreService {
   }
 
   // Restore expenses from Firestore (cache-first strategy)
-  Future<Map<String, dynamic>?> restoreExpenses({bool forceServer = false}) async {
+  Future<Map<String, dynamic>?> restoreExpenses(
+      {bool forceServer = false}) async {
     try {
       print('📥 [FIRESTORE_RESTORE] Starting Firestore restore...');
 

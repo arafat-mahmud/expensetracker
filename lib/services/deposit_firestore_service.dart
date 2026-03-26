@@ -253,8 +253,9 @@ class DepositFirestoreService {
   // ========== BACKUP & RESTORE METHODS (optimized) ==========
 
   // Backup all deposit data to Firestore
-  Future<bool> backupDepositData(List<DepositProfile> profiles,
-      List<DepositTransaction> transactions, {bool force = false}) async {
+  Future<bool> backupDepositData(
+      List<DepositProfile> profiles, List<DepositTransaction> transactions,
+      {bool force = false}) async {
     try {
       // Skip backup if recently synced and not forced
       if (!force && !_shouldSync()) {
@@ -291,7 +292,8 @@ class DepositFirestoreService {
   }
 
   // Restore all deposit data from Firestore (cache-first)
-  Future<Map<String, dynamic>?> restoreDepositData({bool forceServer = false}) async {
+  Future<Map<String, dynamic>?> restoreDepositData(
+      {bool forceServer = false}) async {
     try {
       print('📥 [DEPOSIT_RESTORE] Starting restore...');
 
@@ -333,10 +335,10 @@ class DepositFirestoreService {
         const batchSize = 450;
         for (var i = 0; i < profilesSnapshot.docs.length; i += batchSize) {
           final batch = _firestore.batch();
-          final end = (i + batchSize < profilesSnapshot.docs.length) 
-              ? i + batchSize 
+          final end = (i + batchSize < profilesSnapshot.docs.length)
+              ? i + batchSize
               : profilesSnapshot.docs.length;
-          
+
           for (var j = i; j < end; j++) {
             batch.delete(profilesSnapshot.docs[j].reference);
           }
@@ -345,15 +347,16 @@ class DepositFirestoreService {
       }
 
       // Delete all transactions using batches
-      final transactionsSnapshot = await _getDepositTransactionsCollection().get();
+      final transactionsSnapshot =
+          await _getDepositTransactionsCollection().get();
       if (transactionsSnapshot.docs.isNotEmpty) {
         const batchSize = 450;
         for (var i = 0; i < transactionsSnapshot.docs.length; i += batchSize) {
           final batch = _firestore.batch();
-          final end = (i + batchSize < transactionsSnapshot.docs.length) 
-              ? i + batchSize 
+          final end = (i + batchSize < transactionsSnapshot.docs.length)
+              ? i + batchSize
               : transactionsSnapshot.docs.length;
-          
+
           for (var j = i; j < end; j++) {
             batch.delete(transactionsSnapshot.docs[j].reference);
           }
