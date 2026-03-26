@@ -10,12 +10,16 @@ import 'providers/theme_provider.dart';
 import 'providers/budget_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/language_provider.dart';
+import 'providers/mode_provider.dart';
+import 'providers/deposit_provider.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/dashboard_page.dart';
 import 'screens/history_page.dart';
 import 'screens/settings_page.dart';
 import 'screens/login_page.dart';
 import 'screens/statement_page.dart';
+import 'screens/deposit/deposit_dashboard_page.dart';
+import 'screens/deposit/deposit_history_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +49,8 @@ class ExpenseTrackerApp extends StatelessWidget {
             create: (_) => LanguageProvider(HiveService.settingsBox)),
         ChangeNotifierProvider(create: (_) => BudgetProvider()),
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
+        ChangeNotifierProvider(create: (_) => ModeProvider()),
+        ChangeNotifierProvider(create: (_) => DepositProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -57,92 +63,103 @@ class ExpenseTrackerApp extends StatelessWidget {
                       ? 'NotoSansBengali'
                       : null;
 
-                  return MaterialApp(
-                    title: 'Expense Tracker',
-                    debugShowCheckedModeBanner: false,
-                    locale: languageProvider.locale,
-                    supportedLocales: const [
-                      Locale('en'),
-                      Locale('bn'),
-                    ],
-                    localizationsDelegates: const [
-                      AppLocalizationsDelegate(),
-                      GlobalMaterialLocalizations.delegate,
-                      GlobalWidgetsLocalizations.delegate,
-                      GlobalCupertinoLocalizations.delegate,
-                    ],
-                    theme: themeProvider.lightTheme.copyWith(
-                      textTheme: fontFamily != null
-                          ? themeProvider.lightTheme.textTheme.apply(
-                              fontFamily: fontFamily,
-                            )
-                          : themeProvider.lightTheme.textTheme.copyWith(
-                              titleLarge: GoogleFonts.rubik80sFade(
-                                textStyle: themeProvider
-                                    .lightTheme.textTheme.titleLarge,
-                              ),
-                            ),
-                      appBarTheme:
-                          themeProvider.lightTheme.appBarTheme.copyWith(
-                        titleTextStyle: fontFamily != null
-                            ? TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: fontFamily,
-                                color: themeProvider.lightTheme.appBarTheme
-                                        .titleTextStyle?.color ??
-                                    Colors.black,
-                              )
-                            : GoogleFonts.rubik80sFade(
-                                textStyle: themeProvider.lightTheme.appBarTheme
-                                        .titleTextStyle ??
-                                    const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold),
-                              ),
-                      ),
-                    ),
-                    darkTheme: themeProvider.darkTheme.copyWith(
-                      textTheme: fontFamily != null
-                          ? themeProvider.darkTheme.textTheme.apply(
-                              fontFamily: fontFamily,
-                            )
-                          : themeProvider.darkTheme.textTheme.copyWith(
-                              titleLarge: GoogleFonts.rubik80sFade(
-                                textStyle: themeProvider
-                                    .darkTheme.textTheme.titleLarge,
-                              ),
-                            ),
-                      appBarTheme: themeProvider.darkTheme.appBarTheme.copyWith(
-                        titleTextStyle: fontFamily != null
-                            ? TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                fontFamily: fontFamily,
-                                color: themeProvider.darkTheme.appBarTheme
-                                        .titleTextStyle?.color ??
-                                    Colors.white,
-                              )
-                            : GoogleFonts.rubik80sFade(
-                                textStyle: themeProvider
-                                        .darkTheme.appBarTheme.titleTextStyle ??
-                                    const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold),
-                              ),
-                      ),
-                    ),
-                    themeMode: themeProvider.isDarkMode
-                        ? ThemeMode.dark
-                        : ThemeMode.light,
-                    initialRoute: '/',
-                    routes: {
-                      '/': (context) => authProvider.isAuthenticated
-                          ? const DashboardPage()
-                          : const LoginPage(),
-                      '/history': (context) => const HistoryPage(),
-                      '/settings': (context) => const SettingsPage(),
-                      '/statement': (context) => const StatementPage(),
+                  return Consumer<ModeProvider>(
+                    builder: (context, modeProvider, child) {
+                      return MaterialApp(
+                        title: 'Expense Tracker',
+                        debugShowCheckedModeBanner: false,
+                        locale: languageProvider.locale,
+                        supportedLocales: const [
+                          Locale('en'),
+                          Locale('bn'),
+                        ],
+                        localizationsDelegates: const [
+                          AppLocalizationsDelegate(),
+                          GlobalMaterialLocalizations.delegate,
+                          GlobalWidgetsLocalizations.delegate,
+                          GlobalCupertinoLocalizations.delegate,
+                        ],
+                        theme: themeProvider.lightTheme.copyWith(
+                          textTheme: fontFamily != null
+                              ? themeProvider.lightTheme.textTheme.apply(
+                                  fontFamily: fontFamily,
+                                )
+                              : themeProvider.lightTheme.textTheme.copyWith(
+                                  titleLarge: GoogleFonts.rubik80sFade(
+                                    textStyle: themeProvider
+                                        .lightTheme.textTheme.titleLarge,
+                                  ),
+                                ),
+                          appBarTheme:
+                              themeProvider.lightTheme.appBarTheme.copyWith(
+                            titleTextStyle: fontFamily != null
+                                ? TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: fontFamily,
+                                    color: themeProvider.lightTheme.appBarTheme
+                                            .titleTextStyle?.color ??
+                                        Colors.black,
+                                  )
+                                : GoogleFonts.rubik80sFade(
+                                    textStyle: themeProvider.lightTheme
+                                            .appBarTheme.titleTextStyle ??
+                                        const TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold),
+                                  ),
+                          ),
+                        ),
+                        darkTheme: themeProvider.darkTheme.copyWith(
+                          textTheme: fontFamily != null
+                              ? themeProvider.darkTheme.textTheme.apply(
+                                  fontFamily: fontFamily,
+                                )
+                              : themeProvider.darkTheme.textTheme.copyWith(
+                                  titleLarge: GoogleFonts.rubik80sFade(
+                                    textStyle: themeProvider
+                                        .darkTheme.textTheme.titleLarge,
+                                  ),
+                                ),
+                          appBarTheme:
+                              themeProvider.darkTheme.appBarTheme.copyWith(
+                            titleTextStyle: fontFamily != null
+                                ? TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: fontFamily,
+                                    color: themeProvider.darkTheme.appBarTheme
+                                            .titleTextStyle?.color ??
+                                        Colors.white,
+                                  )
+                                : GoogleFonts.rubik80sFade(
+                                    textStyle: themeProvider.darkTheme
+                                            .appBarTheme.titleTextStyle ??
+                                        const TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold),
+                                  ),
+                          ),
+                        ),
+                        themeMode: themeProvider.isDarkMode
+                            ? ThemeMode.dark
+                            : ThemeMode.light,
+                        initialRoute: '/',
+                        routes: {
+                          '/': (context) => authProvider.isAuthenticated
+                              ? (modeProvider.isDepositMode
+                                  ? const DepositDashboardPage()
+                                  : const DashboardPage())
+                              : const LoginPage(),
+                          '/history': (context) => modeProvider.isDepositMode
+                              ? const DepositHistoryPage()
+                              : const HistoryPage(),
+                          '/deposit-history': (context) =>
+                              const DepositHistoryPage(),
+                          '/settings': (context) => const SettingsPage(),
+                          '/statement': (context) => const StatementPage(),
+                        },
+                      );
                     },
                   );
                 },

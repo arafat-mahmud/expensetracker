@@ -6,6 +6,7 @@ import '../providers/budget_provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/language_provider.dart';
+import '../providers/mode_provider.dart';
 import '../l10n/app_localizations.dart';
 import 'developer_info_screen.dart';
 
@@ -53,6 +54,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final expenseProvider = Provider.of<ExpenseProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final languageProvider = Provider.of<LanguageProvider>(context);
+    final modeProvider = Provider.of<ModeProvider>(context);
     final localizations = AppLocalizations.of(context);
 
     return Scaffold(
@@ -115,6 +117,39 @@ class _SettingsPageState extends State<SettingsPage> {
                 onTap: () {
                   Navigator.pushNamed(context, '/statement');
                 },
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // App Mode Section
+            Text(
+              localizations.appMode,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: ListTile(
+                leading: Icon(
+                  modeProvider.isDepositMode
+                      ? Icons.savings
+                      : Icons.account_balance_wallet,
+                  color:
+                      modeProvider.isDepositMode ? Colors.blue : Colors.green,
+                ),
+                title: Text(localizations.appMode),
+                subtitle: Text(modeProvider.isDepositMode
+                    ? localizations.depositMode
+                    : localizations.expenseMode),
+                trailing: Switch(
+                  value: modeProvider.isDepositMode,
+                  onChanged: (value) {
+                    modeProvider.toggleMode();
+                    Navigator.pushReplacementNamed(context, '/');
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 16),

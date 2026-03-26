@@ -1,9 +1,12 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/expense_model.dart';
+import '../models/deposit_model.dart';
 
 class HiveService {
   static const String expenseBoxName = 'expenses';
   static const String settingsBoxName = 'settings';
+  static const String depositProfilesBoxName = 'deposit_profiles';
+  static const String depositTransactionsBoxName = 'deposit_transactions';
 
   // Initialize Hive
   static Future<void> init() async {
@@ -13,10 +16,18 @@ class HiveService {
     if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(ExpenseAdapter());
     }
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(DepositProfileAdapter());
+    }
+    if (!Hive.isAdapterRegistered(2)) {
+      Hive.registerAdapter(DepositTransactionAdapter());
+    }
 
     // Open Boxes
     await Hive.openBox<Expense>(expenseBoxName);
     await Hive.openBox(settingsBoxName);
+    await Hive.openBox<DepositProfile>(depositProfilesBoxName);
+    await Hive.openBox<DepositTransaction>(depositTransactionsBoxName);
   }
 
   // Get Expense Box
@@ -110,5 +121,119 @@ class HiveService {
   static Future<void> clearAllSettings() async {
     final settingsBox = getSettingsBox();
     await settingsBox.clear();
+  }
+
+  // ========== APP MODE METHODS ==========
+
+  // Settings - App Mode (expense or deposit)
+  static Future<void> setAppMode(String mode) async {
+    final box = getSettingsBox();
+    await box.put('appMode', mode);
+  }
+
+  static String getAppMode() {
+    final box = getSettingsBox();
+    return box.get('appMode', defaultValue: 'expense') as String;
+  }
+
+  // ========== DEPOSIT PROFILE METHODS ==========
+
+  // Get Deposit Profiles Box
+  static Box<DepositProfile> getDepositProfilesBox() {
+    return Hive.box<DepositProfile>(depositProfilesBoxName);
+  }
+
+  // Get Deposit Transactions Box
+  static Box<DepositTransaction> getDepositTransactionsBox() {
+    return Hive.box<DepositTransaction>(depositTransactionsBoxName);
+  }
+
+  // Add Deposit Profile
+  static Future<void> addDepositProfile(DepositProfile profile) async {
+    final box = getDepositProfilesBox();
+    await box.put(profile.id, profile);
+  }
+
+  // Update Deposit Profile
+  static Future<void> updateDepositProfile(DepositProfile profile) async {
+    final box = getDepositProfilesBox();
+    await box.put(profile.id, profile);
+  }
+
+  // Delete Deposit Profile
+  static Future<void> deleteDepositProfile(String id) async {
+    final box = getDepositProfilesBox();
+    await box.delete(id);
+
+    // Also delete all transactions for this profile
+    final transactionsBox = getDepositTransactionsBox();
+    final transactionsToDelete = transactionsBox.values
+        .where((t) => t.profileId == id)
+        .map((t) => t.id)
+        .toList();
+    for (var transactionId in transactionsToDelete) {
+      await transactionsBox.delete(transactionId);
+    }
+  }
+
+  // Get All Deposit Profiles
+  static List<DepositProfile> getAllDepositProfiles() {
+    final box = getDepositProfilesBox();
+    return box.values.toList();
+  }
+
+  // Get Deposit Profile by ID
+  static DepositProfile? getDepositProfileById(String id) {
+    final box = getDepositProfilesBox();
+    return box.get(id);
+  }
+
+  // ========== DEPOSIT TRANSACTION METHODS ==========
+
+  // Add Deposit Transaction
+  static Future<void> addDepositTransaction(
+      DepositTransaction transaction) async {
+    final box = getDepositTransactionsBox();
+    await box.put(transaction.id, transaction);
+  }
+
+  // Update Deposit Transaction
+  static Future<void> updateDepositTransaction(
+      DepositTransaction transaction) async {
+    final box = getDepositTransactionsBox();
+    await box.put(transaction.id, transaction);
+  }
+
+  // Delete Deposit Transaction
+  static Future<void> deleteDepositTransaction(String id) async {
+    final box = getDepositTransactionsBox();
+    await box.delete(id);
+  }
+
+  // Get All Deposit Transactions
+  static List<DepositTransaction> getAllDepositTransactions() {
+    final box = getDepositTransactionsBox();
+    return box.values.toList();
+  }
+
+  // Get Deposit Transactions for Profile
+  static List<DepositTransaction> getDepositTransactionsForProfile(
+      String profileId) {
+    final box = getDepositTransactionsBox();
+    return box.values.where((t) => t.profileId == profileId).toList();
+  }
+
+  // Get Deposit Transaction by ID
+  static DepositTransaction? getDepositTransactionById(String id) {
+    final box = getDepositTransactionsBox();
+    return box.get(id);
+  }
+
+  // Clear all deposit data
+  static Future<void> clearAllDepositData() async {
+    final profilesBox = getDepositProfilesBox();
+    final transactionsBox = getDepositTransactionsBox();
+    await profilesBox.clear();
+    await transactionsBox.clear();
   }
 }

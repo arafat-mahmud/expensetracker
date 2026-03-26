@@ -309,6 +309,49 @@ abstract class AppLocalizations {
   String get petCare;
   String get childExpenses;
 
+  // ========== DEPOSIT/SAVINGS FEATURE ==========
+  // Mode
+  String get appMode;
+  String get expenseMode;
+  String get depositMode;
+  String get switchToDepositMode;
+  String get switchToExpenseMode;
+
+  // Deposit Feature
+  String get depositProfiles;
+  String get createProfile;
+  String get editProfile;
+  String get profileName;
+  String get targetAmount;
+  String get deadline;
+  String get currentBalance;
+  String get remainingAmount;
+  String get daysRemaining;
+  String get addDeposit;
+  String get withdraw;
+  String get depositAmount;
+  String get withdrawAmount;
+  String get profileCompleted;
+  String get goalReached;
+  String get onTrack;
+  String get behind;
+  String get noProfiles;
+  String get createFirstProfile;
+  String get profileCreated;
+  String get profileUpdated;
+  String get saveProfile;
+  String get updateProfile;
+  String get pleaseEnterName;
+  String get depositAdded;
+  String get withdrawCompleted;
+  String get confirmWithdraw;
+  String get availableBalance;
+  String get insufficientBalance;
+  String get depositHistory;
+  String get allProfiles;
+  String get noMatchingTransactions;
+  String get startByAddingDeposit;
+
   // Helper method to get translated category name
   String getCategoryName(String category);
 }
@@ -849,6 +892,86 @@ class EnglishLocalizations extends AppLocalizations {
   String get petCare => 'Pet Care';
   @override
   String get childExpenses => 'Child Expenses';
+
+  // ========== DEPOSIT/SAVINGS FEATURE ==========
+  @override
+  String get appMode => 'App Mode';
+  @override
+  String get expenseMode => 'Expense Mode';
+  @override
+  String get depositMode => 'Deposit Mode';
+  @override
+  String get switchToDepositMode => 'Switch to Deposit Mode';
+  @override
+  String get switchToExpenseMode => 'Switch to Expense Mode';
+  @override
+  String get depositProfiles => 'Savings Goals';
+  @override
+  String get createProfile => 'Create Goal';
+  @override
+  String get editProfile => 'Edit Goal';
+  @override
+  String get profileName => 'Goal Name';
+  @override
+  String get targetAmount => 'Target Amount';
+  @override
+  String get deadline => 'Deadline';
+  @override
+  String get currentBalance => 'Current Balance';
+  @override
+  String get remainingAmount => 'Remaining';
+  @override
+  String get daysRemaining => 'Days Left';
+  @override
+  String get addDeposit => 'Add Deposit';
+  @override
+  String get withdraw => 'Withdraw';
+  @override
+  String get depositAmount => 'Deposit Amount';
+  @override
+  String get withdrawAmount => 'Withdraw Amount';
+  @override
+  String get profileCompleted => 'Goal Completed';
+  @override
+  String get goalReached => 'Goal Reached!';
+  @override
+  String get onTrack => 'On Track';
+  @override
+  String get behind => 'Behind Schedule';
+  @override
+  String get noProfiles => 'No Savings Goals';
+  @override
+  String get createFirstProfile =>
+      'Create your first savings goal to start tracking!';
+  @override
+  String get profileCreated => 'Goal created successfully!';
+  @override
+  String get profileUpdated => 'Goal updated successfully!';
+  @override
+  String get saveProfile => 'Save Goal';
+  @override
+  String get updateProfile => 'Update Goal';
+  @override
+  String get pleaseEnterName => 'Please enter a name';
+  @override
+  String get depositAdded => 'Deposit added successfully!';
+  @override
+  String get withdrawCompleted => 'Withdrawal completed!';
+  @override
+  String get confirmWithdraw => 'Confirm Withdraw';
+  @override
+  String get availableBalance => 'Available Balance';
+  @override
+  String get insufficientBalance => 'Insufficient balance';
+  @override
+  String get depositHistory => 'Deposit History';
+  @override
+  String get allProfiles => 'All Goals';
+  @override
+  String get noMatchingTransactions => 'No matching transactions found';
+  @override
+  String get startByAddingDeposit =>
+      'Start by adding a deposit to your savings goal';
 
   @override
   String getCategoryName(String category) {
@@ -1457,6 +1580,85 @@ class BanglaLocalizations extends AppLocalizations {
   String get petCare => 'পোষা প্রাণীর যত্ন';
   @override
   String get childExpenses => 'সন্তানের খরচ';
+
+  // ========== DEPOSIT/SAVINGS FEATURE ==========
+  @override
+  String get appMode => 'অ্যাপ মোড';
+  @override
+  String get expenseMode => 'খরচ মোড';
+  @override
+  String get depositMode => 'সঞ্চয় মোড';
+  @override
+  String get switchToDepositMode => 'সঞ্চয় মোডে যান';
+  @override
+  String get switchToExpenseMode => 'খরচ মোডে যান';
+  @override
+  String get depositProfiles => 'সঞ্চয় লক্ষ্য';
+  @override
+  String get createProfile => 'লক্ষ্য তৈরি করুন';
+  @override
+  String get editProfile => 'লক্ষ্য সম্পাদনা';
+  @override
+  String get profileName => 'লক্ষ্যের নাম';
+  @override
+  String get targetAmount => 'লক্ষ্য পরিমাণ';
+  @override
+  String get deadline => 'সময়সীমা';
+  @override
+  String get currentBalance => 'বর্তমান ব্যালেন্স';
+  @override
+  String get remainingAmount => 'বাকি পরিমাণ';
+  @override
+  String get daysRemaining => 'বাকি দিন';
+  @override
+  String get addDeposit => 'জমা করুন';
+  @override
+  String get withdraw => 'উত্তোলন';
+  @override
+  String get depositAmount => 'জমার পরিমাণ';
+  @override
+  String get withdrawAmount => 'উত্তোলনের পরিমাণ';
+  @override
+  String get profileCompleted => 'লক্ষ্য সম্পন্ন';
+  @override
+  String get goalReached => 'লক্ষ্যে পৌঁছেছেন!';
+  @override
+  String get onTrack => 'সঠিক পথে';
+  @override
+  String get behind => 'পিছিয়ে আছেন';
+  @override
+  String get noProfiles => 'কোন সঞ্চয় লক্ষ্য নেই';
+  @override
+  String get createFirstProfile =>
+      'ট্র্যাকিং শুরু করতে আপনার প্রথম সঞ্চয় লক্ষ্য তৈরি করুন!';
+  @override
+  String get profileCreated => 'লক্ষ্য সফলভাবে তৈরি হয়েছে!';
+  @override
+  String get profileUpdated => 'লক্ষ্য সফলভাবে আপডেট হয়েছে!';
+  @override
+  String get saveProfile => 'লক্ষ্য সংরক্ষণ করুন';
+  @override
+  String get updateProfile => 'লক্ষ্য আপডেট করুন';
+  @override
+  String get pleaseEnterName => 'একটি নাম লিখুন';
+  @override
+  String get depositAdded => 'জমা সফলভাবে যোগ হয়েছে!';
+  @override
+  String get withdrawCompleted => 'উত্তোলন সম্পন্ন!';
+  @override
+  String get confirmWithdraw => 'উত্তোলন নিশ্চিত করুন';
+  @override
+  String get availableBalance => 'উপলব্ধ ব্যালেন্স';
+  @override
+  String get insufficientBalance => 'অপর্যাপ্ত ব্যালেন্স';
+  @override
+  String get depositHistory => 'জমার ইতিহাস';
+  @override
+  String get allProfiles => 'সকল লক্ষ্য';
+  @override
+  String get noMatchingTransactions => 'কোন মিল পাওয়া যায়নি';
+  @override
+  String get startByAddingDeposit => 'আপনার সঞ্চয় লক্ষ্যে জমা দিয়ে শুরু করুন';
 
   @override
   String getCategoryName(String category) {
