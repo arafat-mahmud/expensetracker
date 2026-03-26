@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'services/hive_service.dart';
 import 'services/user_data_manager.dart';
+import 'services/sync_queue_service.dart';
+import 'services/background_sync_service.dart';
 import 'providers/expense_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/budget_provider.dart';
@@ -39,6 +41,12 @@ void main() async {
 
   // Initialize User Data Manager for proper data isolation
   UserDataManager().initialize();
+
+  // Start sync queue service for offline-safe Firestore writes
+  SyncQueueService().start();
+
+  // Initialize background sync (runs even when app is closed)
+  await BackgroundSyncService().initialize();
 
   runApp(const ExpenseTrackerApp());
 }

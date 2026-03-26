@@ -5,6 +5,8 @@ import '../services/hive_service.dart';
 
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
+import '../services/sync_queue_service.dart';
+import '../services/background_sync_service.dart';
 
 class ExpenseProvider with ChangeNotifier {
   List<Expense> _expenses = [];
@@ -77,6 +79,13 @@ class ExpenseProvider with ChangeNotifier {
     if (!_hasPendingChanges) return;
 
     try {
+      final flushed = await SyncQueueService().flushPendingOps();
+      if (flushed) {
+        _lastBackupTime = DateTime.now();
+        _hasPendingChanges = false;
+        notifyListeners();
+        return;
+      }
       print('🔄 [EXPENSE_PROVIDER] Performing debounced sync...');
       final monthlyBudget = HiveService.getMonthlyBudget();
       final success = await _firestoreService.backupExpenses(
@@ -173,6 +182,8 @@ class ExpenseProvider with ChangeNotifier {
 
     // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
+      await SyncQueueService().enqueueExpenseUpsert(expense);
+      await BackgroundSyncService().scheduleOneOffSync();
       _scheduleDebouncedSync();
     }
   }
@@ -188,6 +199,8 @@ class ExpenseProvider with ChangeNotifier {
 
     // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
+      await SyncQueueService().enqueueExpenseUpsert(expense);
+      await BackgroundSyncService().scheduleOneOffSync();
       _scheduleDebouncedSync();
     }
   }
@@ -204,6 +217,8 @@ class ExpenseProvider with ChangeNotifier {
         print('✅ Deleted expense from Firestore: $id');
       } catch (e) {
         print('❌ Failed to delete from Firestore: $e');
+        await SyncQueueService().enqueueExpenseDelete(id);
+        await BackgroundSyncService().scheduleOneOffSync();
       }
     }
 
@@ -437,6 +452,8 @@ class ExpenseProvider with ChangeNotifier {
       // Cancel any pending debounced sync
       _syncDebounceTimer?.cancel();
       _hasPendingChanges = false;
+
+      await SyncQueueService().flushPendingOps();
 
       final monthlyBudget = HiveService.getMonthlyBudget();
 

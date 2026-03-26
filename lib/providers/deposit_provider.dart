@@ -4,6 +4,8 @@ import '../models/deposit_model.dart';
 import '../services/hive_service.dart';
 import '../services/deposit_firestore_service.dart';
 import '../services/auth_service.dart';
+import '../services/sync_queue_service.dart';
+import '../services/background_sync_service.dart';
 
 class DepositProvider with ChangeNotifier {
   List<DepositProfile> _profiles = [];
@@ -71,6 +73,13 @@ class DepositProvider with ChangeNotifier {
     if (!_hasPendingChanges) return;
 
     try {
+      final flushed = await SyncQueueService().flushPendingOps();
+      if (flushed) {
+        _lastBackupTime = DateTime.now();
+        _hasPendingChanges = false;
+        notifyListeners();
+        return;
+      }
       print('🔄 [DEPOSIT_PROVIDER] Performing debounced sync...');
       final success = await _firestoreService.backupDepositData(
         _profiles,
@@ -148,6 +157,8 @@ class DepositProvider with ChangeNotifier {
 
     // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
+      await SyncQueueService().enqueueDepositProfileUpsert(profile);
+      await BackgroundSyncService().scheduleOneOffSync();
       _scheduleDebouncedSync();
     }
   }
@@ -158,6 +169,8 @@ class DepositProvider with ChangeNotifier {
 
     // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
+      await SyncQueueService().enqueueDepositProfileUpsert(profile);
+      await BackgroundSyncService().scheduleOneOffSync();
       _scheduleDebouncedSync();
     }
   }
@@ -173,6 +186,8 @@ class DepositProvider with ChangeNotifier {
         print('✅ Profile deleted from Firestore');
       } catch (e) {
         print('❌ Failed to delete profile from Firestore: $e');
+        await SyncQueueService().enqueueDepositProfileDelete(profileId);
+        await BackgroundSyncService().scheduleOneOffSync();
       }
     }
   }
@@ -191,6 +206,8 @@ class DepositProvider with ChangeNotifier {
 
     // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
+      await SyncQueueService().enqueueDepositTransactionUpsert(transaction);
+      await BackgroundSyncService().scheduleOneOffSync();
       _scheduleDebouncedSync();
     }
   }
@@ -221,6 +238,8 @@ class DepositProvider with ChangeNotifier {
         print('✅ Transaction deleted from Firestore');
       } catch (e) {
         print('❌ Failed to delete transaction from Firestore: $e');
+        await SyncQueueService().enqueueDepositTransactionDelete(transactionId);
+        await BackgroundSyncService().scheduleOneOffSync();
       }
     }
   }
@@ -314,6 +333,7 @@ class DepositProvider with ChangeNotifier {
 
   Future<bool> backupToFirestore() async {
     try {
+      await SyncQueueService().flushPendingOps();
       final success = await _firestoreService.backupDepositData(
         _profiles,
         _transactions,

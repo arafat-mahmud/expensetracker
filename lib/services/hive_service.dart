@@ -7,6 +7,7 @@ class HiveService {
   static const String settingsBoxName = 'settings';
   static const String depositProfilesBoxName = 'deposit_profiles';
   static const String depositTransactionsBoxName = 'deposit_transactions';
+  static const String pendingSyncBoxName = 'pending_sync_ops';
 
   // Initialize Hive
   static Future<void> init() async {
@@ -28,6 +29,7 @@ class HiveService {
     await Hive.openBox(settingsBoxName);
     await Hive.openBox<DepositProfile>(depositProfilesBoxName);
     await Hive.openBox<DepositTransaction>(depositTransactionsBoxName);
+    await Hive.openBox(pendingSyncBoxName);
   }
 
   // Get Expense Box
@@ -42,6 +44,11 @@ class HiveService {
 
   // Static getter for settings box
   static Box get settingsBox => getSettingsBox();
+
+  // Get Pending Sync Box
+  static Box getPendingSyncBox() {
+    return Hive.box(pendingSyncBoxName);
+  }
 
   // Add Expense
   static Future<void> addExpense(Expense expense) async {
@@ -121,6 +128,29 @@ class HiveService {
   static Future<void> clearAllSettings() async {
     final settingsBox = getSettingsBox();
     await settingsBox.clear();
+  }
+
+  // ========== PENDING SYNC METHODS ==========
+
+  static Future<void> addPendingSyncOp(
+      String opId, Map<String, dynamic> op) async {
+    final box = getPendingSyncBox();
+    await box.put(opId, op);
+  }
+
+  static Future<void> deletePendingSyncOp(String opId) async {
+    final box = getPendingSyncBox();
+    await box.delete(opId);
+  }
+
+  static Map<dynamic, dynamic> getAllPendingSyncOps() {
+    final box = getPendingSyncBox();
+    return box.toMap();
+  }
+
+  static Future<void> clearPendingSyncOps() async {
+    final box = getPendingSyncBox();
+    await box.clear();
   }
 
   // ========== APP MODE METHODS ==========

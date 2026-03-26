@@ -34,6 +34,15 @@ class DepositFirestoreService {
         .collection('deposit_transactions');
   }
 
+  // Public getters for collections (used by sync queue)
+  CollectionReference getUserDepositProfilesCollection() {
+    return _getDepositProfilesCollection();
+  }
+
+  CollectionReference getUserDepositTransactionsCollection() {
+    return _getDepositTransactionsCollection();
+  }
+
   // Get user's settings document
   DocumentReference _getUserSettingsDocument() {
     final userId = _authService.getUserId();

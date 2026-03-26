@@ -19,6 +19,11 @@ class FirestoreService {
     return _firestore.collection('users').doc(userId).collection('expenses');
   }
 
+  // Public getter for expense collection (used by sync queue)
+  CollectionReference getUserExpensesCollection() {
+    return _getUserExpensesCollection();
+  }
+
   // NEW: Get date-wise expense document path (date as document, expense ID as subdocument)
   // Format: users/{userId}/expenses_by_date/{YYYY-MM-DD}/{expenseId}
   String _getDateKey(DateTime date) {

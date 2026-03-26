@@ -48,6 +48,7 @@ class UserDataManager {
       // Clear all local data
       await HiveService.clearAllData();
       await HiveService.clearAllSettings();
+      await HiveService.clearPendingSyncOps();
 
       // Clear cached Google account
       _authService.clearCachedGoogleAccount();
@@ -70,6 +71,7 @@ class UserDataManager {
     try {
       await HiveService.clearAllData();
       await HiveService.clearAllSettings();
+      await HiveService.clearPendingSyncOps();
       _authService.clearCachedGoogleAccount();
 
       print('UserDataManager: All local data cleared');
