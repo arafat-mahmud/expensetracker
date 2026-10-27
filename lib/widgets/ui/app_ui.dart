@@ -655,6 +655,10 @@ class PickerField extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final valueStyle = textTheme.bodyLarge?.copyWith(
+      fontWeight: FontWeight.w500,
+      color: scheme.onSurface,
+    );
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppTheme.fieldRadius),
@@ -675,15 +679,20 @@ class PickerField extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: scheme.onSurface,
-                ),
-              ),
+              child: showChevron
+                  ? Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: valueStyle,
+                    )
+                  // Narrow side-by-side fields (dates) shrink the value to
+                  // fit rather than cut it off, e.g. long Bengali month names
+                  : FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(value, maxLines: 1, style: valueStyle),
+                    ),
             ),
             if (trailingText != null)
               Text(

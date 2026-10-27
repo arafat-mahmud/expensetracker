@@ -172,186 +172,200 @@ class _StatementPageState extends State<StatementPage> {
 
     return Scaffold(
       appBar: AppBar(title: Text(AppFormat.sentence(l.accountStatement))),
+      // No side padding on the list itself, so the period row can run edge
+      // to edge; every other section is padded below
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        padding: const EdgeInsets.fromLTRB(0, 8, 0, 32),
         children: [
-          SectionHeader(l.quickSelectPeriod),
-          // One swipeable row, running edge to edge past the page padding
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SectionHeader(l.quickSelectPeriod),
+          ),
+          // One row of periods, swiped left and right
           SizedBox(
             height: 44,
-            child: OverflowBox(
-              maxWidth: MediaQuery.sizeOf(context).width,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: periods.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final period = periods.entries.elementAt(index);
-                  return Builder(
-                    builder: (chipContext) => Center(
-                      child: ChoiceChip(
-                        label: Text(period.value),
-                        selected: _period == period.key,
-                        onSelected: (_) {
-                          _selectQuickPeriod(period.key);
-                          // Bring a half-hidden chip fully into view; only
-                          // this row scrolls, not the page
-                          final chip = chipContext.findRenderObject();
-                          if (chip != null) {
-                            Scrollable.of(chipContext).position.ensureVisible(
-                                  chip,
-                                  alignment: 0.5,
-                                  duration: const Duration(milliseconds: 250),
-                                  curve: Curves.easeOut,
-                                );
-                          }
-                        },
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: periods.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final period = periods.entries.elementAt(index);
+                return Builder(
+                  builder: (chipContext) => Center(
+                    child: ChoiceChip(
+                      label: Text(period.value),
+                      selected: _period == period.key,
+                      onSelected: (_) {
+                        _selectQuickPeriod(period.key);
+                        // Bring a half-hidden chip fully into view; only
+                        // this row scrolls, not the page
+                        final chip = chipContext.findRenderObject();
+                        if (chip != null) {
+                          Scrollable.of(chipContext).position.ensureVisible(
+                                chip,
+                                alignment: 0.5,
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeOut,
+                              );
+                        }
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SectionHeader(l.customDateRange),
+                Row(
+                  children: [
+                    Expanded(
+                      child: PickerField(
+                        label: l.startDate,
+                        value: AppFormat.date(context, _startDate),
+                        icon: Icons.event_rounded,
+                        showChevron: false,
+                        onTap: () => _selectStartDate(context),
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          SectionHeader(l.customDateRange),
-          Row(
-            children: [
-              Expanded(
-                child: PickerField(
-                  label: l.startDate,
-                  value: AppFormat.date(context, _startDate),
-                  icon: Icons.event_rounded,
-                  showChevron: false,
-                  onTap: () => _selectStartDate(context),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: PickerField(
-                  label: l.endDate,
-                  value: AppFormat.date(context, _endDate),
-                  icon: Icons.event_available_rounded,
-                  showChevron: false,
-                  onTap: () => _selectEndDate(context),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          SectionHeader(AppFormat.sentence(l.accountSummary)),
-          Card(
-            child: Column(
-              children: [
-                Container(
-                  color: scheme.surfaceContainerLow,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.receipt_long_rounded,
-                          size: 18, color: scheme.onSurfaceVariant),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          l.transactionCount(transactions.length),
-                          style: textTheme.labelLarge,
-                        ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: PickerField(
+                        label: l.endDate,
+                        value: AppFormat.date(context, _endDate),
+                        icon: Icons.event_available_rounded,
+                        showChevron: false,
+                        onTap: () => _selectEndDate(context),
                       ),
-                      StatusChip(
-                        label: balance >= 0 ? l.surplus : l.deficit,
-                        color: balance >= 0 ? palette.income : palette.expense,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const Divider(),
-                Padding(
-                  padding: const EdgeInsets.all(16),
+                const SizedBox(height: 24),
+                SectionHeader(AppFormat.sentence(l.accountSummary)),
+                Card(
                   child: Column(
                     children: [
-                      _SummaryRow(
-                        label: l.openingBalance,
-                        value: AppFormat.money(context, openingBalance),
+                      Container(
+                        color: scheme.surfaceContainerLow,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            Icon(Icons.receipt_long_rounded,
+                                size: 18, color: scheme.onSurfaceVariant),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                l.transactionCount(transactions.length),
+                                style: textTheme.labelLarge,
+                              ),
+                            ),
+                            StatusChip(
+                              label: balance >= 0 ? l.surplus : l.deficit,
+                              color: balance >= 0
+                                  ? palette.income
+                                  : palette.expense,
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      _SummaryRow(
-                        label: l.totalCredits,
-                        value: AppFormat.money(context, totalIncome,
-                            signed: true),
-                        color: palette.income,
-                      ),
-                      const SizedBox(height: 12),
-                      _SummaryRow(
-                        label: l.totalDebits,
-                        value: AppFormat.money(context, -totalExpense,
-                            signed: true),
-                        color: palette.expense,
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 14),
-                        child: Divider(),
-                      ),
-                      _SummaryRow(
-                        label: l.closingBalance,
-                        value: AppFormat.money(context, balance),
-                        color: balance >= 0 ? palette.income : palette.expense,
-                        emphasized: true,
+                      const Divider(),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            _SummaryRow(
+                              label: l.openingBalance,
+                              value: AppFormat.money(context, openingBalance),
+                            ),
+                            const SizedBox(height: 12),
+                            _SummaryRow(
+                              label: l.totalCredits,
+                              value: AppFormat.money(context, totalIncome,
+                                  signed: true),
+                              color: palette.income,
+                            ),
+                            const SizedBox(height: 12),
+                            _SummaryRow(
+                              label: l.totalDebits,
+                              value: AppFormat.money(context, -totalExpense,
+                                  signed: true),
+                              color: palette.expense,
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 14),
+                              child: Divider(),
+                            ),
+                            _SummaryRow(
+                              label: l.closingBalance,
+                              value: AppFormat.money(context, balance),
+                              color: balance >= 0
+                                  ? palette.income
+                                  : palette.expense,
+                              emphasized: true,
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          if (transactions.isEmpty)
-            Card(
-              child: EmptyState(
-                compact: true,
-                icon: Icons.search_off_rounded,
-                title: l.noTransactionsFound,
-                message: l.noTransactionsMessage,
-              ),
-            )
-          else ...[
-            SubmitButton(
-              label: l.downloadPdfStatement,
-              icon: Icons.picture_as_pdf_rounded,
-              onPressed: _isGenerating ? null : _generatePdfStatement,
-            ),
-            if (_isGenerating)
-              const Padding(
-                padding: EdgeInsets.only(top: 12),
-                child: LinearProgressIndicator(),
-              ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: scheme.primaryContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.info_outline_rounded,
-                      size: 18, color: scheme.primary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      l.statementFormatNote,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurface,
-                        height: 1.4,
-                      ),
+                const SizedBox(height: 24),
+                if (transactions.isEmpty)
+                  Card(
+                    child: EmptyState(
+                      compact: true,
+                      icon: Icons.search_off_rounded,
+                      title: l.noTransactionsFound,
+                      message: l.noTransactionsMessage,
+                    ),
+                  )
+                else ...[
+                  SubmitButton(
+                    label: l.downloadPdfStatement,
+                    icon: Icons.picture_as_pdf_rounded,
+                    onPressed: _isGenerating ? null : _generatePdfStatement,
+                  ),
+                  if (_isGenerating)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 12),
+                      child: LinearProgressIndicator(),
+                    ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline_rounded,
+                            size: 18, color: scheme.primary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            l.statementFormatNote,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurface,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
-          ],
+          ),
         ],
       ),
     );
