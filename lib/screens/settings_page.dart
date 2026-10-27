@@ -27,9 +27,6 @@ class _SettingsPageState extends State<SettingsPage> {
     budgetProvider.reloadBudget();
     expenseProvider.loadExpenses();
 
-    // Update last backup time
-    await expenseProvider.getLastBackupTime();
-
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

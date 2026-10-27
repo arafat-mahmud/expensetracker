@@ -54,6 +54,11 @@ dependencies:
   url_launcher: ^6.3.2
   package_info_plus: ^9.0.0
 
+  # Security: only the genuine Play Store app may use Firestore.
+  # Pinned to the release that matches firebase_core 4.2.x; upgrade the
+  # Firebase packages together (newer ones need a newer Kotlin plugin).
+  firebase_app_check: 0.4.1+2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

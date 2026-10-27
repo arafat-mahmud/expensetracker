@@ -21,6 +21,8 @@ class _DepositHistoryPageState extends State<DepositHistoryPage> {
     final depositProvider =
         Provider.of<DepositProvider>(context, listen: false);
     depositProvider.loadData();
+    // Only (re)starts the live listener if it is not running. No reads otherwise.
+    await depositProvider.startCloudSync();
   }
 
   @override

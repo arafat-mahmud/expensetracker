@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,6 +10,7 @@ import 'services/hive_service.dart';
 import 'services/user_data_manager.dart';
 import 'services/sync_queue_service.dart';
 import 'services/background_sync_service.dart';
+import 'services/app_check_service.dart';
 import 'providers/expense_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/budget_provider.dart';
@@ -24,11 +27,27 @@ import 'screens/statement_page.dart';
 import 'screens/deposit/deposit_dashboard_page.dart';
 import 'screens/deposit/deposit_history_page.dart';
 
-void main() async {
+void main() {
+  // Release builds print nothing: the logs include user ids, emails and
+  // amounts, and anyone with adb access to the phone could read them
+  runZoned(
+    _startApp,
+    zoneSpecification: ZoneSpecification(
+      print: (self, parent, zone, line) {
+        if (!kReleaseMode) parent.print(zone, line);
+      },
+    ),
+  );
+}
+
+Future<void> _startApp() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase
   await Firebase.initializeApp();
+
+  // Only the genuine Play Store app may use Firestore (see app_check_service)
+  await activateAppCheck();
 
   // Enable Firestore offline persistence and optimize cache settings
   FirebaseFirestore.instance.settings = const Settings(

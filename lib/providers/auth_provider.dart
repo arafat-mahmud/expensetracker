@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
 import '../services/hive_service.dart';
+import '../services/sync_queue_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -52,6 +53,7 @@ class AuthProvider with ChangeNotifier {
 
       // Clear all local data from the previous user (including settings)
       await HiveService.clearAllData();
+      await HiveService.clearAllDepositData();
       await HiveService.clearAllSettings();
       print('✅ Previous user\'s local data and settings cleared');
 
@@ -69,8 +71,11 @@ class AuthProvider with ChangeNotifier {
       // Clear cached Google account to prevent data leakage to next user
       _authService.clearCachedGoogleAccount();
 
-      // Clear all local data immediately on sign out to prevent cache issues
+      // Clear all local data immediately on sign out to prevent cache issues.
+      // Deposit data too, otherwise the next account would see (and upload)
+      // it. It comes back on the next sign-in from Firestore's local cache.
       await HiveService.clearAllData();
+      await HiveService.clearAllDepositData();
       await HiveService.clearAllSettings();
       print('✅ Local data cleared on sign out');
 
@@ -118,6 +123,8 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> signOut() async {
     try {
+      // Hand any queued writes to Firestore while the user is still signed in
+      await SyncQueueService().flushPendingOps();
       await _authService.signOut();
       _user = null;
       notifyListeners();

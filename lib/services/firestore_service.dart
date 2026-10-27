@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/expense_model.dart';
 import 'auth_service.dart';
+import 'collection_sync.dart';
+import 'hive_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -112,54 +114,6 @@ class FirestoreService {
     }
   }
 
-  // Get all expenses from Firestore (cache-first strategy)
-  Future<List<Expense>> getAllExpenses({bool forceServer = false}) async {
-    try {
-      // Try cache first for faster loading (unless forceServer is true)
-      if (!forceServer) {
-        try {
-          final cacheSnapshot = await _getUserExpensesCollection()
-              .get(GetOptions(source: Source.cache));
-
-          if (cacheSnapshot.docs.isNotEmpty) {
-            print(
-                '📦 [FIRESTORE] Loaded ${cacheSnapshot.docs.length} expenses from cache');
-            return cacheSnapshot.docs
-                .map((doc) =>
-                    Expense.fromJson(doc.data() as Map<String, dynamic>))
-                .toList();
-          }
-          print('📦 [FIRESTORE] Cache empty, fetching from server...');
-        } catch (e) {
-          // Cache miss or error, fall through to server fetch
-          print('📦 [FIRESTORE] Cache error: $e, fetching from server...');
-        }
-      }
-
-      // Fetch from server (fallback or when forceServer = true)
-      final serverSnapshot = await _getUserExpensesCollection()
-          .get(GetOptions(source: Source.server));
-
-      print(
-          '☁️ [FIRESTORE] Loaded ${serverSnapshot.docs.length} expenses from server');
-      return serverSnapshot.docs
-          .map((doc) => Expense.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      print('❌ [FIRESTORE] Error getting expenses: $e');
-      return [];
-    }
-  }
-
-  // Stream of expenses (real-time)
-  Stream<List<Expense>> expensesStream() {
-    return _getUserExpensesCollection().snapshots().map((snapshot) {
-      return snapshot.docs
-          .map((doc) => Expense.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
-    });
-  }
-
   // Sync settings to Firestore
   Future<void> syncSettings(double monthlyBudget, bool isDarkMode) async {
     try {
@@ -210,26 +164,34 @@ class FirestoreService {
     }
   }
 
-  // Clear all user data from Firestore (with batch optimization)
-  Future<void> clearAllData() async {
+  // Delete the given expense docs (ids come from CollectionSync.allDocIds,
+  // so no reads are spent listing them) and leave a `_wipe` marker that tells
+  // the other devices to clear their local copies
+  Future<void> clearAllData(Iterable<String> docIds) async {
     try {
       final collection = _getUserExpensesCollection();
-      final snapshot = await collection.get();
+      // The marker is overwritten below, so deleting it would waste a write
+      final ids =
+          docIds.where((id) => id != CollectionSync.wipeDocId).toList();
 
       // Use batches of 450 to stay under 500 limit
       const batchSize = 450;
-      final docs = snapshot.docs;
 
-      for (var i = 0; i < docs.length; i += batchSize) {
+      for (var i = 0; i < ids.length; i += batchSize) {
         final batch = _firestore.batch();
-        final end = (i + batchSize < docs.length) ? i + batchSize : docs.length;
+        final end = (i + batchSize < ids.length) ? i + batchSize : ids.length;
 
         for (var j = i; j < end; j++) {
-          batch.delete(docs[j].reference);
+          batch.delete(collection.doc(ids[j]));
         }
 
         await batch.commit();
       }
+
+      await collection.doc(CollectionSync.wipeDocId).set({
+        'updatedAt': FieldValue.serverTimestamp(),
+        'deviceId': HiveService.getDeviceId(),
+      });
     } catch (e) {
       print('Error clearing data from Firestore: $e');
       rethrow;
@@ -292,40 +254,6 @@ class FirestoreService {
     }
   }
 
-  // Restore expenses from Firestore (cache-first strategy)
-  Future<Map<String, dynamic>?> restoreExpenses(
-      {bool forceServer = false}) async {
-    try {
-      print('📥 [FIRESTORE_RESTORE] Starting Firestore restore...');
-
-      // Use cache-first strategy for faster loading
-      List<Expense> expenses = await getAllExpenses(forceServer: forceServer);
-      final settings = await getSettings(forceServer: forceServer);
-      final monthlyBudget = settings?['monthlyBudget'] as double?;
-
-      if (expenses.isEmpty && monthlyBudget == null) {
-        // If cache is empty, try server
-        if (!forceServer) {
-          print('📥 [FIRESTORE_RESTORE] Cache empty, trying server...');
-          return await restoreExpenses(forceServer: true);
-        }
-        print('ℹ️ [FIRESTORE_RESTORE] No backup data found');
-        return null;
-      }
-
-      print(
-          '✅ [FIRESTORE_RESTORE] Restore successful: ${expenses.length} expenses, budget: $monthlyBudget');
-      return {
-        'expenses': expenses,
-        'monthlyBudget': monthlyBudget,
-      };
-    } catch (e, stackTrace) {
-      print('❌ [FIRESTORE_RESTORE] Error restoring from Firestore: $e');
-      print('❌ [FIRESTORE_RESTORE] Stack trace: $stackTrace');
-      return null;
-    }
-  }
-
   // Get last backup time from Firestore
   Future<DateTime?> getLastBackupTime() async {
     try {
@@ -343,14 +271,14 @@ class FirestoreService {
   }
 
   // Delete all backup data from Firestore (optimized - flat structure only)
-  Future<bool> deleteAllBackupFiles() async {
+  Future<bool> deleteAllBackupFiles(Iterable<String> docIds) async {
     try {
       print(
           '🗑️ [FIRESTORE_DELETE] Starting deletion of all backup data from Firestore...');
       final stopwatch = Stopwatch()..start();
 
       // Clear flat structure expenses only (reduced operations)
-      await clearAllData();
+      await clearAllData(docIds);
       print('✅ [FIRESTORE_DELETE] Cleared expenses');
 
       // Clear settings document (but keep the document itself)

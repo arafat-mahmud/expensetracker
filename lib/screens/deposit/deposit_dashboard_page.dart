@@ -31,6 +31,9 @@ class _DepositDashboardPageState extends State<DepositDashboardPage> {
           showGoalCompletedDialog(context, profile, balance);
         }
       };
+
+      // Load saved data if needed and listen for changes from other devices
+      depositProvider.startCloudSync();
     });
   }
 
@@ -38,7 +41,8 @@ class _DepositDashboardPageState extends State<DepositDashboardPage> {
     final depositProvider =
         Provider.of<DepositProvider>(context, listen: false);
     depositProvider.loadData();
-    await depositProvider.restoreFromFirestore();
+    // Only (re)starts the live listener if it is not running. No reads otherwise.
+    await depositProvider.startCloudSync();
   }
 
   Future<void> _downloadPdf() async {

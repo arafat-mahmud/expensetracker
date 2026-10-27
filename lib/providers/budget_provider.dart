@@ -1,12 +1,11 @@
 import 'package:flutter/foundation.dart';
 import '../services/hive_service.dart';
 import '../services/auth_service.dart';
-import '../services/firestore_service.dart';
+import '../services/sync_queue_service.dart';
 
 class BudgetProvider with ChangeNotifier {
   double _monthlyBudget = 10000.0;
   final AuthService _authService = AuthService();
-  final FirestoreService _firestoreService = FirestoreService();
   String? _currentUserId;
 
   double get monthlyBudget => _monthlyBudget;
@@ -14,6 +13,12 @@ class BudgetProvider with ChangeNotifier {
   BudgetProvider() {
     _currentUserId = _authService.getUserId();
     _loadBudget();
+
+    // Budgets arriving from cloud sync (another device, restore, Delete All)
+    // are written to Hive; pick them up without callers having to reload
+    HiveService.getSettingsBox()
+        .watch(key: 'monthlyBudget')
+        .listen((_) => _loadBudget());
 
     // Listen to auth state changes to detect user switches
     _authService.authStateChanges.listen((user) {
@@ -46,19 +51,13 @@ class BudgetProvider with ChangeNotifier {
     print('✅ BudgetProvider: Budget reloaded: $_monthlyBudget');
   }
 
-  // Set budget (optimized - only syncs settings, not all expenses)
+  // Set budget: one write, which also reaches the user's other devices
   Future<void> setMonthlyBudget(double budget) async {
     _monthlyBudget = budget;
     await HiveService.setMonthlyBudget(budget);
     notifyListeners();
 
-    // Only sync the budget setting, not all expenses (reduces writes significantly)
-    try {
-      await _firestoreService.syncSettings(budget, HiveService.getDarkMode());
-      print('✅ Budget synced to Firestore: $budget');
-    } catch (e) {
-      print('⚠️ Failed to sync budget to Firestore: $e');
-    }
+    await SyncQueueService().enqueueSettingsUpsert({'monthlyBudget': budget});
   }
 
   double getBudgetUsedPercentage(double totalExpense) {

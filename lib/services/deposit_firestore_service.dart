@@ -118,47 +118,6 @@ class DepositFirestoreService {
     }
   }
 
-  // Get all profiles from Firestore (cache-first strategy)
-  Future<List<DepositProfile>> getAllProfiles(
-      {bool forceServer = false}) async {
-    try {
-      // Try cache first for faster loading (unless forceServer is true)
-      if (!forceServer) {
-        try {
-          final cacheSnapshot = await _getDepositProfilesCollection()
-              .get(GetOptions(source: Source.cache));
-
-          if (cacheSnapshot.docs.isNotEmpty) {
-            print(
-                '📦 [DEPOSIT_FIRESTORE] Loaded ${cacheSnapshot.docs.length} profiles from cache');
-            return cacheSnapshot.docs
-                .map((doc) =>
-                    DepositProfile.fromJson(doc.data() as Map<String, dynamic>))
-                .toList();
-          }
-          print('📦 [DEPOSIT_FIRESTORE] Cache empty, fetching from server...');
-        } catch (e) {
-          print(
-              '📦 [DEPOSIT_FIRESTORE] Cache error: $e, fetching from server...');
-        }
-      }
-
-      // Fetch from server (fallback or when forceServer = true)
-      final serverSnapshot = await _getDepositProfilesCollection()
-          .get(GetOptions(source: Source.server));
-
-      print(
-          '☁️ [DEPOSIT_FIRESTORE] Loaded ${serverSnapshot.docs.length} profiles from server');
-      return serverSnapshot.docs
-          .map((doc) =>
-              DepositProfile.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      print('❌ [DEPOSIT_FIRESTORE] Error getting deposit profiles: $e');
-      return [];
-    }
-  }
-
   // ========== TRANSACTION SYNC METHODS ==========
 
   // Sync transaction to Firestore
@@ -209,65 +168,6 @@ class DepositFirestoreService {
     }
   }
 
-  // Get all transactions from Firestore (cache-first strategy)
-  Future<List<DepositTransaction>> getAllTransactions(
-      {bool forceServer = false}) async {
-    try {
-      // Try cache first for faster loading (unless forceServer is true)
-      if (!forceServer) {
-        try {
-          final cacheSnapshot = await _getDepositTransactionsCollection()
-              .get(GetOptions(source: Source.cache));
-
-          if (cacheSnapshot.docs.isNotEmpty) {
-            print(
-                '📦 [DEPOSIT_FIRESTORE] Loaded ${cacheSnapshot.docs.length} transactions from cache');
-            return cacheSnapshot.docs
-                .map((doc) => DepositTransaction.fromJson(
-                    doc.data() as Map<String, dynamic>))
-                .toList();
-          }
-          print(
-              '📦 [DEPOSIT_FIRESTORE] Transaction cache empty, fetching from server...');
-        } catch (e) {
-          print(
-              '📦 [DEPOSIT_FIRESTORE] Transaction cache error: $e, fetching from server...');
-        }
-      }
-
-      // Fetch from server (fallback or when forceServer = true)
-      final serverSnapshot = await _getDepositTransactionsCollection()
-          .get(GetOptions(source: Source.server));
-
-      print(
-          '☁️ [DEPOSIT_FIRESTORE] Loaded ${serverSnapshot.docs.length} transactions from server');
-      return serverSnapshot.docs
-          .map((doc) =>
-              DepositTransaction.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      print('❌ [DEPOSIT_FIRESTORE] Error getting deposit transactions: $e');
-      return [];
-    }
-  }
-
-  // Get transactions for a profile
-  Future<List<DepositTransaction>> getTransactionsForProfile(
-      String profileId) async {
-    try {
-      final snapshot = await _getDepositTransactionsCollection()
-          .where('profileId', isEqualTo: profileId)
-          .get();
-      return snapshot.docs
-          .map((doc) =>
-              DepositTransaction.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      print('Error getting transactions for profile from Firestore: $e');
-      return [];
-    }
-  }
-
   // ========== BACKUP & RESTORE METHODS (optimized) ==========
 
   // Backup all deposit data to Firestore
@@ -306,39 +206,6 @@ class DepositFirestoreService {
       print('❌ [DEPOSIT_BACKUP] Error backing up deposit data: $e');
       print('❌ [DEPOSIT_BACKUP] Stack trace: $stackTrace');
       return false;
-    }
-  }
-
-  // Restore all deposit data from Firestore (cache-first)
-  Future<Map<String, dynamic>?> restoreDepositData(
-      {bool forceServer = false}) async {
-    try {
-      print('📥 [DEPOSIT_RESTORE] Starting restore...');
-
-      // Use cache-first strategy
-      final profiles = await getAllProfiles(forceServer: forceServer);
-      final transactions = await getAllTransactions(forceServer: forceServer);
-
-      if (profiles.isEmpty && transactions.isEmpty) {
-        // If cache is empty, try server
-        if (!forceServer) {
-          print('📥 [DEPOSIT_RESTORE] Cache empty, trying server...');
-          return await restoreDepositData(forceServer: true);
-        }
-        print('ℹ️ [DEPOSIT_RESTORE] No backup data found');
-        return null;
-      }
-
-      print(
-          '✅ [DEPOSIT_RESTORE] Restored ${profiles.length} profiles, ${transactions.length} transactions');
-      return {
-        'profiles': profiles,
-        'transactions': transactions,
-      };
-    } catch (e, stackTrace) {
-      print('❌ [DEPOSIT_RESTORE] Error restoring deposit data: $e');
-      print('❌ [DEPOSIT_RESTORE] Stack trace: $stackTrace');
-      return null;
     }
   }
 

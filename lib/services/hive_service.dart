@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/expense_model.dart';
 import '../models/deposit_model.dart';
@@ -8,6 +9,7 @@ class HiveService {
   static const String depositProfilesBoxName = 'deposit_profiles';
   static const String depositTransactionsBoxName = 'deposit_transactions';
   static const String pendingSyncBoxName = 'pending_sync_ops';
+  static const String syncStateBoxName = 'sync_state';
 
   // Initialize Hive
   static Future<void> init() async {
@@ -30,6 +32,7 @@ class HiveService {
     await Hive.openBox<DepositProfile>(depositProfilesBoxName);
     await Hive.openBox<DepositTransaction>(depositTransactionsBoxName);
     await Hive.openBox(pendingSyncBoxName);
+    await Hive.openBox(syncStateBoxName);
   }
 
   // Get Expense Box
@@ -118,6 +121,20 @@ class HiveService {
     await box.delete('currentUserId');
   }
 
+  // Settings - whether a one-time cloud restore (e.g. the legacy budget) has
+  // run for a user. Lives in the settings box, so it resets whenever settings
+  // are cleared (sign-out / user switch) and the next sign-in restores again.
+  static bool isRestoreDone(String scope, String userId) {
+    final box = getSettingsBox();
+    return box.get('restoreDone_${scope}_$userId', defaultValue: false)
+        as bool;
+  }
+
+  static Future<void> setRestoreDone(String scope, String userId) async {
+    final box = getSettingsBox();
+    await box.put('restoreDone_${scope}_$userId', true);
+  }
+
   // Clear all data
   static Future<void> clearAllData() async {
     final expenseBox = getExpenseBox();
@@ -151,6 +168,58 @@ class HiveService {
   static Future<void> clearPendingSyncOps() async {
     final box = getPendingSyncBox();
     await box.clear();
+  }
+
+  // ========== CLOUD SYNC STATE ==========
+  // Unlike the settings box this survives sign-out: it describes Firestore's
+  // local cache, which survives sign-out too. Keys are per user.
+
+  static String? _deviceId;
+
+  static Box getSyncStateBox() {
+    return Hive.box(syncStateBoxName);
+  }
+
+  // Random id of this install, stamped on every write so a device can leave
+  // its own changes out when listening for changes from other devices
+  static String getDeviceId() {
+    final box = getSyncStateBox();
+    var id = _deviceId ?? box.get('deviceId') as String?;
+    if (id == null) {
+      final random = Random.secure();
+      id = List.generate(
+              16, (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'))
+          .join();
+      box.put('deviceId', id);
+    }
+    return _deviceId = id;
+  }
+
+  // Server time (microseconds) of the newest change received from the cloud
+  static int? getLastSyncAt(String userId, String scope) {
+    return getSyncStateBox().get('lastSyncAt_${scope}_$userId') as int?;
+  }
+
+  static Future<void> setLastSyncAt(
+      String userId, String scope, int micros) async {
+    await getSyncStateBox().put('lastSyncAt_${scope}_$userId', micros);
+  }
+
+  // Server time (microseconds) of the last "Delete All" from another device
+  static int? getWipedAt(String userId, String scope) {
+    return getSyncStateBox().get('wipedAt_${scope}_$userId') as int?;
+  }
+
+  static Future<void> setWipedAt(
+      String userId, String scope, int micros) async {
+    await getSyncStateBox().put('wipedAt_${scope}_$userId', micros);
+  }
+
+  // Apply changes received from the cloud to a local box
+  static Future<void> applyRemote<T>(
+      Box<T> box, Map<String, T> upserts, Iterable<String> deletedIds) async {
+    await box.putAll(upserts);
+    await box.deleteAll(deletedIds);
   }
 
   // ========== APP MODE METHODS ==========

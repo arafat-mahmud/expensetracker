@@ -1,11 +1,11 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:hive/hive.dart';
 import '../models/deposit_model.dart';
 import '../services/hive_service.dart';
 import '../services/deposit_firestore_service.dart';
 import '../services/auth_service.dart';
 import '../services/sync_queue_service.dart';
-import '../services/background_sync_service.dart';
+import '../services/collection_sync.dart';
 
 class DepositProvider with ChangeNotifier {
   List<DepositProfile> _profiles = [];
@@ -16,10 +16,31 @@ class DepositProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
   String? _currentUserId;
 
-  // Debounce timer for auto-sync (reduces write operations)
-  Timer? _syncDebounceTimer;
-  static const Duration _syncDebounceDelay = Duration(seconds: 5);
-  bool _hasPendingChanges = false;
+  // Keep profiles and transactions in step across the user's devices
+  late final CollectionSync _profilesSync = CollectionSync(
+    scope: 'deposit_profiles',
+    entity: 'deposit_profile',
+    collection: _firestoreService.getUserDepositProfilesCollection,
+    isLocalEmpty: () => HiveService.getDepositProfilesBox().isEmpty,
+    apply: (changes) => _applyRemoteChanges(
+      HiveService.getDepositProfilesBox(),
+      'deposit_profile',
+      changes,
+      DepositProfile.fromJson,
+    ),
+  );
+  late final CollectionSync _transactionsSync = CollectionSync(
+    scope: 'deposit_transactions',
+    entity: 'deposit_transaction',
+    collection: _firestoreService.getUserDepositTransactionsCollection,
+    isLocalEmpty: () => HiveService.getDepositTransactionsBox().isEmpty,
+    apply: (changes) => _applyRemoteChanges(
+      HiveService.getDepositTransactionsBox(),
+      'deposit_transaction',
+      changes,
+      DepositTransaction.fromJson,
+    ),
+  );
 
   // Callback for when a goal is completed (for showing celebration dialog)
   Function(DepositProfile)? onGoalCompleted;
@@ -39,7 +60,6 @@ class DepositProvider with ChangeNotifier {
   DepositProvider() {
     _currentUserId = _authService.getUserId();
     loadData();
-    _loadLastBackupTime();
 
     // Listen to auth state changes
     _authService.authStateChanges.listen((user) {
@@ -57,49 +77,10 @@ class DepositProvider with ChangeNotifier {
     });
   }
 
-  // Schedule debounced sync to reduce write operations
-  void _scheduleDebouncedSync() {
-    _hasPendingChanges = true;
-    _syncDebounceTimer?.cancel();
-    _syncDebounceTimer = Timer(_syncDebounceDelay, () {
-      if (_hasPendingChanges && _autoSync) {
-        _performDebouncedSync();
-      }
-    });
-  }
-
-  // Perform the actual sync after debounce delay
-  Future<void> _performDebouncedSync() async {
-    if (!_hasPendingChanges) return;
-
-    try {
-      final flushed = await SyncQueueService().flushPendingOps();
-      if (flushed) {
-        _lastBackupTime = DateTime.now();
-        _hasPendingChanges = false;
-        notifyListeners();
-        return;
-      }
-      print('🔄 [DEPOSIT_PROVIDER] Performing debounced sync...');
-      final success = await _firestoreService.backupDepositData(
-        _profiles,
-        _transactions,
-      );
-
-      if (success) {
-        print('✅ [DEPOSIT_PROVIDER] Debounced sync successful');
-        _lastBackupTime = DateTime.now();
-        _hasPendingChanges = false;
-        notifyListeners();
-      }
-    } catch (e) {
-      print('❌ [DEPOSIT_PROVIDER] Debounced sync failed: $e');
-    }
-  }
-
   void _clearDataOnSignOut() {
-    _syncDebounceTimer?.cancel();
     print('DepositProvider: Clearing data on sign out');
+    _profilesSync.stop();
+    _transactionsSync.stop();
     _profiles = [];
     _transactions = [];
     _lastBackupTime = null;
@@ -113,25 +94,13 @@ class DepositProvider with ChangeNotifier {
     _lastBackupTime = null;
     notifyListeners();
 
+    _profilesSync.stop();
+    _transactionsSync.stop();
     loadData();
-    await _loadLastBackupTime();
-
-    if (_profiles.isEmpty) {
-      print('No local deposit data found, attempting restore...');
-      await restoreFromFirestore();
-    } else {
-      print('Local deposit data found, scheduling backup...');
-      _scheduleDebouncedSync();
-    }
-  }
-
-  Future<void> _loadLastBackupTime() async {
-    try {
-      _lastBackupTime = await _firestoreService.getLastBackupTime();
-      notifyListeners();
-    } catch (e) {
-      print('Failed to load deposit backup time: $e');
-    }
+    // Cloud sync starts when the savings dashboard is opened
+    // (startCloudSync), so users who never use it spend no reads on it.
+    // Local data needs no re-upload: every change was already queued as a
+    // single-document write when it was made.
   }
 
   void loadData() {
@@ -149,17 +118,14 @@ class DepositProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // ========== PROFILE CRUD (optimized with debounced sync) ==========
+  // ========== PROFILE CRUD (one Firestore write per changed doc) ==========
 
   Future<void> addProfile(DepositProfile profile) async {
     await HiveService.addDepositProfile(profile);
     loadData();
 
-    // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
-      await SyncQueueService().enqueueDepositProfileUpsert(profile);
-      await BackgroundSyncService().scheduleOneOffSync();
-      _scheduleDebouncedSync();
+      await SyncQueueService().enqueueDepositProfileUpsert(profile, isNew: true);
     }
   }
 
@@ -167,32 +133,32 @@ class DepositProvider with ChangeNotifier {
     await HiveService.updateDepositProfile(profile);
     loadData();
 
-    // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
       await SyncQueueService().enqueueDepositProfileUpsert(profile);
-      await BackgroundSyncService().scheduleOneOffSync();
-      _scheduleDebouncedSync();
     }
   }
 
   Future<void> deleteProfile(String profileId) async {
+    // The profile's transaction ids are known locally, so no Firestore query
+    // (and no reads) is needed to find them
+    final transactionIds = _transactions
+        .where((t) => t.profileId == profileId)
+        .map((t) => t.id)
+        .toList();
+
     await HiveService.deleteDepositProfile(profileId);
     loadData();
 
-    // Delete from Firestore immediately (delete operations are cheap)
     if (_autoSync) {
-      try {
-        await _firestoreService.deleteProfile(profileId);
-        print('✅ Profile deleted from Firestore');
-      } catch (e) {
-        print('❌ Failed to delete profile from Firestore: $e');
-        await SyncQueueService().enqueueDepositProfileDelete(profileId);
-        await BackgroundSyncService().scheduleOneOffSync();
+      final syncQueue = SyncQueueService();
+      await syncQueue.enqueueDepositProfileDelete(profileId);
+      for (final id in transactionIds) {
+        await syncQueue.enqueueDepositTransactionDelete(id);
       }
     }
   }
 
-  // ========== TRANSACTION CRUD (optimized with debounced sync) ==========
+  // ========== TRANSACTION CRUD (one Firestore write per changed doc) ==========
 
   Future<void> addTransaction(DepositTransaction transaction) async {
     await HiveService.addDepositTransaction(transaction);
@@ -204,11 +170,9 @@ class DepositProvider with ChangeNotifier {
       await checkAndUpdateCompletion(profile);
     }
 
-    // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
-      await SyncQueueService().enqueueDepositTransactionUpsert(transaction);
-      await BackgroundSyncService().scheduleOneOffSync();
-      _scheduleDebouncedSync();
+      await SyncQueueService()
+          .enqueueDepositTransactionUpsert(transaction, isNew: true);
     }
   }
 
@@ -233,14 +197,7 @@ class DepositProvider with ChangeNotifier {
     }
 
     if (_autoSync) {
-      try {
-        await _firestoreService.deleteTransaction(transactionId);
-        print('✅ Transaction deleted from Firestore');
-      } catch (e) {
-        print('❌ Failed to delete transaction from Firestore: $e');
-        await SyncQueueService().enqueueDepositTransactionDelete(transactionId);
-        await BackgroundSyncService().scheduleOneOffSync();
-      }
+      await SyncQueueService().enqueueDepositTransactionDelete(transactionId);
     }
   }
 
@@ -331,6 +288,7 @@ class DepositProvider with ChangeNotifier {
 
   // ========== BACKUP & RESTORE ==========
 
+  // Rewrites every profile and transaction, so it is never called automatically
   Future<bool> backupToFirestore() async {
     try {
       await SyncQueueService().flushPendingOps();
@@ -349,40 +307,42 @@ class DepositProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> restoreFromFirestore() async {
-    try {
-      final restoreData = await _firestoreService.restoreDepositData();
-      if (restoreData != null) {
-        final profiles = restoreData['profiles'] as List<DepositProfile>? ?? [];
-        final transactions =
-            restoreData['transactions'] as List<DepositTransaction>? ?? [];
+  /// Loads the user's savings data if this device needs it, then keeps
+  /// listening for changes made on their other devices (see CollectionSync).
+  /// Cheap to call again, e.g. from pull-to-refresh.
+  /// Returns true when saved data was loaded into an empty local store.
+  Future<bool> startCloudSync() async {
+    final loaded =
+        await Future.wait([_profilesSync.start(), _transactionsSync.start()]);
+    return loaded.contains(true) && _profiles.isNotEmpty;
+  }
 
-        // Clear existing local data first
-        await HiveService.clearAllDepositData();
-
-        // Save restored data
-        for (var profile in profiles) {
-          await HiveService.addDepositProfile(profile);
-        }
-        for (var transaction in transactions) {
-          await HiveService.addDepositTransaction(transaction);
-        }
-
-        loadData();
-        print(
-            '✅ Deposit data restored: ${profiles.length} profiles, ${transactions.length} transactions');
-        return true;
-      }
-      return false;
-    } catch (e) {
-      print('Failed to restore deposit data: $e');
-      return false;
+  Future<void> _applyRemoteChanges<T>(
+    Box<T> box,
+    String entity,
+    RemoteChanges changes,
+    T Function(Map<String, dynamic>) fromJson,
+  ) async {
+    if (changes.wiped) {
+      // Data was wiped on another device; keep only writes still queued here
+      final pending = SyncQueueService().pendingDocIds([entity]);
+      await box.deleteAll(
+          box.keys.where((id) => !pending.contains(id.toString())).toList());
     }
+    await HiveService.applyRemote(
+      box,
+      parseRemoteDocs(changes.upserts, fromJson),
+      changes.deletedIds,
+    );
+    loadData();
   }
 
   Future<bool> permanentlyDeleteAllData() async {
     try {
-      // Clear local data
+      // Clear local data (and queued writes for docs about to be deleted)
+      final syncQueue = SyncQueueService();
+      await syncQueue.discardPendingOps('deposit_profile');
+      await syncQueue.discardPendingOps('deposit_transaction');
       await HiveService.clearAllDepositData();
       loadData();
 

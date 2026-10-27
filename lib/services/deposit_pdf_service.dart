@@ -1,11 +1,9 @@
-import 'dart:io';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
-import 'package:open_file/open_file.dart';
 import '../models/deposit_model.dart';
+import 'pdf_file_saver.dart';
 
 class DepositPdfService {
   static Future<void> generateAndDownloadPdf({
@@ -385,35 +383,13 @@ class DepositPdfService {
       // Generate PDF bytes
       final bytes = await pdf.save();
 
-      // Get download directory
-      Directory? directory;
-      if (Platform.isAndroid) {
-        directory = Directory('/storage/emulated/0/Download');
-        if (!await directory.exists()) {
-          directory = await getExternalStorageDirectory();
-        }
-      } else if (Platform.isIOS) {
-        directory = await getApplicationDocumentsDirectory();
-      } else {
-        directory = await getDownloadsDirectory();
-      }
-
-      if (directory == null) {
-        throw Exception('Could not access download directory');
-      }
-
       // Create unique filename
       final fileName =
           'Savings_Report_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
-      final file = File('${directory.path}/$fileName');
 
-      // Save file
-      await file.writeAsBytes(bytes);
-
-      print('PDF saved to: ${file.path}');
-
-      // Open the file
-      await OpenFile.open(file.path);
+      // Save to Downloads and open it (no "All files access" needed)
+      final savedTo = await PdfFileSaver.saveAndOpen(bytes, fileName);
+      print('PDF saved: $fileName${savedTo == null ? '' : ' in $savedTo'}');
     } catch (e) {
       print('Error saving PDF: $e');
       rethrow;

@@ -109,7 +109,8 @@ class _StatementPageState extends State<StatementPage> {
         );
       }
     } finally {
-      setState(() => _isGenerating = false);
+      // The user may have left the page while the PDF was being generated
+      if (mounted) setState(() => _isGenerating = false);
     }
   }
 

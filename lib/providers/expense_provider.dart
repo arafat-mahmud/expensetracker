@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/expense_model.dart';
 import '../services/hive_service.dart';
@@ -6,7 +5,7 @@ import '../services/hive_service.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
 import '../services/sync_queue_service.dart';
-import '../services/background_sync_service.dart';
+import '../services/collection_sync.dart';
 
 class ExpenseProvider with ChangeNotifier {
   List<Expense> _expenses = [];
@@ -18,10 +17,14 @@ class ExpenseProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
   String? _currentUserId; // Track current user to detect switches
 
-  // Debounce timer for auto-sync (reduces write operations)
-  Timer? _syncDebounceTimer;
-  static const Duration _syncDebounceDelay = Duration(seconds: 5);
-  bool _hasPendingChanges = false;
+  // Keeps expenses (and the budget) in step across the user's devices
+  late final CollectionSync _cloudSync = CollectionSync(
+    scope: 'expenses',
+    entity: 'expense',
+    collection: _firestoreService.getUserExpensesCollection,
+    isLocalEmpty: () => HiveService.getExpenseBox().isEmpty,
+    apply: _applyRemoteChanges,
+  );
 
   List<Expense> get expenses => _expenses;
   DateTime get selectedMonth => _selectedMonth;
@@ -43,7 +46,6 @@ class ExpenseProvider with ChangeNotifier {
   ExpenseProvider() {
     _currentUserId = _authService.getUserId();
     loadExpenses();
-    _loadLastBackupTime();
 
     // Listen to auth state changes to detect user switches
     _authService.authStateChanges.listen((user) {
@@ -63,51 +65,10 @@ class ExpenseProvider with ChangeNotifier {
     });
   }
 
-  // Schedule debounced sync to reduce write operations
-  void _scheduleDebouncedSync() {
-    _hasPendingChanges = true;
-    _syncDebounceTimer?.cancel();
-    _syncDebounceTimer = Timer(_syncDebounceDelay, () {
-      if (_hasPendingChanges && _autoSync) {
-        _performDebouncedSync();
-      }
-    });
-  }
-
-  // Perform the actual sync after debounce delay
-  Future<void> _performDebouncedSync() async {
-    if (!_hasPendingChanges) return;
-
-    try {
-      final flushed = await SyncQueueService().flushPendingOps();
-      if (flushed) {
-        _lastBackupTime = DateTime.now();
-        _hasPendingChanges = false;
-        notifyListeners();
-        return;
-      }
-      print('🔄 [EXPENSE_PROVIDER] Performing debounced sync...');
-      final monthlyBudget = HiveService.getMonthlyBudget();
-      final success = await _firestoreService.backupExpenses(
-        _expenses,
-        monthlyBudget: monthlyBudget,
-      );
-
-      if (success) {
-        print('✅ [EXPENSE_PROVIDER] Debounced sync successful');
-        _lastBackupTime = DateTime.now();
-        _hasPendingChanges = false;
-        notifyListeners();
-      }
-    } catch (e) {
-      print('❌ [EXPENSE_PROVIDER] Debounced sync failed: $e');
-    }
-  }
-
   // Clear data when user signs out
   void _clearDataOnSignOut() {
-    _syncDebounceTimer?.cancel();
     print('ExpenseProvider: Clearing data on sign out');
+    _cloudSync.stop();
     _expenses = [];
     _lastBackupTime = null;
     _selectedMonth = DateTime.now();
@@ -125,42 +86,19 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners(); // Immediately show empty state
 
     // Load new user's data
+    _cloudSync.stop();
     loadExpenses();
-    await _loadLastBackupTime();
 
-    // Try to restore from Firestore backup for new user (was Google Drive)
-    if (_expenses.isEmpty) {
-      print('No local data found, attempting Firestore restore...');
-      final restored = await restoreFromFirestore();
-      if (restored) {
-        print('✅ Data restored from Firestore backup');
-      } else {
-        print('No Firestore backup found for this user');
-      }
-    } else {
-      // If user has local data, backup to Firestore immediately
-      print(
-          '📤 Local data found (${_expenses.length} expenses), backing up to Firestore...');
-      final backed = await backupToFirestore();
-      if (backed) {
-        print('✅ Local data backed up to Firestore successfully');
-      } else {
-        print('⚠️ Failed to backup local data to Firestore');
-      }
+    // Load the user's cloud data if needed and listen for changes from their
+    // other devices. Local data needs no re-upload: every change was already
+    // queued as a single-document write when it was made.
+    final restored = await startCloudSync();
+    if (restored) {
+      print('✅ Data restored from Firestore backup');
     }
 
     print(
         '✅ ExpenseProvider: Expenses reloaded for new user (${_expenses.length} expenses)');
-  }
-
-  // Load last backup time on initialization
-  Future<void> _loadLastBackupTime() async {
-    try {
-      _lastBackupTime = await _firestoreService.getLastBackupTime();
-      notifyListeners();
-    } catch (e) {
-      print('Failed to load last backup time: $e');
-    }
   }
 
   // Load all expenses from Hive
@@ -171,7 +109,7 @@ class ExpenseProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Add new expense (optimized with debounced sync)
+  // Add new expense (exactly one Firestore write, via the sync queue)
   Future<void> addExpense(Expense expense) async {
     await HiveService.addExpense(expense);
 
@@ -180,15 +118,12 @@ class ExpenseProvider with ChangeNotifier {
     _expenses.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
 
-    // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
-      await SyncQueueService().enqueueExpenseUpsert(expense);
-      await BackgroundSyncService().scheduleOneOffSync();
-      _scheduleDebouncedSync();
+      await SyncQueueService().enqueueExpenseUpsert(expense, isNew: true);
     }
   }
 
-  // Update expense (optimized with debounced sync)
+  // Update expense (exactly one Firestore write, via the sync queue)
   Future<void> updateExpense(Expense expense) async {
     await HiveService.updateExpense(expense);
 
@@ -197,29 +132,19 @@ class ExpenseProvider with ChangeNotifier {
     _expenses.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
 
-    // Schedule debounced sync instead of immediate backup
     if (_autoSync) {
       await SyncQueueService().enqueueExpenseUpsert(expense);
-      await BackgroundSyncService().scheduleOneOffSync();
-      _scheduleDebouncedSync();
     }
   }
 
-  // Delete expense (optimized - single Firestore delete)
+  // Delete expense (one Firestore delete, via the sync queue so it also
+  // works offline without blocking the UI)
   Future<void> deleteExpense(String id) async {
     // Delete from local storage first
     await HiveService.deleteExpense(id);
 
-    // Delete from Firestore if auto-sync is enabled (single operation)
     if (_autoSync) {
-      try {
-        await _firestoreService.deleteExpense(id);
-        print('✅ Deleted expense from Firestore: $id');
-      } catch (e) {
-        print('❌ Failed to delete from Firestore: $e');
-        await SyncQueueService().enqueueExpenseDelete(id);
-        await BackgroundSyncService().scheduleOneOffSync();
-      }
+      await SyncQueueService().enqueueExpenseDelete(id);
     }
 
     // Immediately update UI
@@ -385,24 +310,26 @@ class ExpenseProvider with ChangeNotifier {
       print('Starting FAST permanent deletion of all data...');
       final stopwatch = Stopwatch()..start();
 
-      // Step 1: Clear local data immediately (fastest operation)
+      // Step 1: Clear local data immediately (fastest operation).
+      // Queued writes are dropped too; those docs are about to be deleted.
+      await SyncQueueService().discardPendingOps('expense');
       await HiveService.clearAllData();
       // Also reset monthly budget to default
       await HiveService.setMonthlyBudget(10000.0);
       print(
           '✅ Local data cleared and budget reset (${stopwatch.elapsedMilliseconds}ms)');
 
-      // Step 2: Delete Firestore backups with timeout (was Google Drive)
-      final firestoreDeleteSuccess =
-          await _firestoreService.deleteAllBackupFiles().timeout(
+      // Step 2: Delete Firestore backups with timeout (was Google Drive).
+      // The ids come from Firestore's local cache plus a delta query, so
+      // listing them costs about one read instead of one per document.
+      Future<bool> deleteFromCloud() async => _firestoreService
+          .deleteAllBackupFiles(await _cloudSync.allDocIds());
+      final firestoreDeleteSuccess = await deleteFromCloud().timeout(
         const Duration(seconds: 8),
         onTimeout: () {
+          // The original deletion keeps running in the background. Starting
+          // a second one would read and delete every document again.
           print('⚠️ Firestore deletion timed out - continuing in background');
-          // Continue deletion in background
-          _firestoreService.deleteAllBackupFiles().catchError((e) {
-            print('Background Firestore deletion failed: $e');
-            return false;
-          });
           return false;
         },
       ).catchError((e) {
@@ -413,16 +340,7 @@ class ExpenseProvider with ChangeNotifier {
       print(
           '✅ Cloud operations completed (${stopwatch.elapsedMilliseconds}ms)');
 
-      // Step 3: Ensure Firestore is ready for future backups
-      if (firestoreDeleteSuccess) {
-        // Prepare Firestore for new backups after deletion
-        _firestoreService.ensureFirestoreReadyAfterDeletion().catchError((e) {
-          print('Failed to prepare Firestore for future backups: $e');
-          return false;
-        });
-      }
-
-      // Step 4: Immediate UI updates
+      // Step 3: Immediate UI updates
       _lastBackupTime = null;
       loadExpenses(); // This will show empty list immediately
 
@@ -447,12 +365,9 @@ class ExpenseProvider with ChangeNotifier {
   // Note: Firestore is used for both authentication and expense data storage
 
   // Manual backup to Firestore (forces immediate sync)
+  // Rewrites every expense (one write each), so it is never called automatically
   Future<bool> backupToFirestore() async {
     try {
-      // Cancel any pending debounced sync
-      _syncDebounceTimer?.cancel();
-      _hasPendingChanges = false;
-
       await SyncQueueService().flushPendingOps();
 
       final monthlyBudget = HiveService.getMonthlyBudget();
@@ -475,43 +390,56 @@ class ExpenseProvider with ChangeNotifier {
     }
   }
 
-  // Restore from Firestore (automatic restore after sign-in) - was Google Drive
-  // Note: After calling this, you should call budgetProvider.reloadBudget() to update the UI
-  Future<bool> restoreFromFirestore() async {
-    try {
-      final restoreData = await _firestoreService.restoreExpenses();
-      if (restoreData != null) {
-        final expenses = restoreData['expenses'] as List<Expense>?;
-        final monthlyBudget = restoreData['monthlyBudget'] as double?;
+  /// Loads the user's cloud data if this device needs it, then keeps
+  /// listening for changes made on their other devices (see CollectionSync).
+  /// Cheap to call again, e.g. from pull-to-refresh: while the listener is
+  /// running it costs nothing.
+  /// Returns true when saved expenses were loaded into an empty local store.
+  Future<bool> startCloudSync() async {
+    final loaded = await _cloudSync.start();
+    if (loaded) await _restoreLegacyBudget();
+    return loaded && _expenses.isNotEmpty;
+  }
 
-        if (expenses != null && expenses.isNotEmpty) {
-          // Clear existing local data first
-          await HiveService.clearAllData();
-
-          // Save restored data to Hive
-          for (var expense in expenses) {
-            await HiveService.addExpense(expense);
-          }
-          loadExpenses();
-          print(
-              '✅ Automatic restore successful: ${expenses.length} expenses restored');
-        }
-
-        // Restore monthly budget if available
-        if (monthlyBudget != null) {
-          await HiveService.setMonthlyBudget(monthlyBudget);
-          print('✅ Monthly budget restored: $monthlyBudget');
-          // Note: BudgetProvider needs to reload to see this change
-        }
-
-        return true;
-      }
-      print('ℹ️ No backup data found to restore');
-      return false;
-    } catch (e) {
-      print('❌ Failed to restore from Firestore: $e');
-      return false;
+  Future<void> _applyRemoteChanges(RemoteChanges changes) async {
+    if (changes.wiped) {
+      // "Delete All" on another device; keep only writes still queued here
+      final pending = SyncQueueService().pendingDocIds(['expense']);
+      final box = HiveService.getExpenseBox();
+      await box.deleteAll(
+          box.keys.where((id) => !pending.contains(id.toString())).toList());
+      await HiveService.setMonthlyBudget(10000.0); // same reset as there
     }
+
+    final settings = changes.upserts.remove(CollectionSync.settingsDocId);
+    if (settings != null) {
+      final budget = (settings['monthlyBudget'] as num?)?.toDouble();
+      if (budget != null) await HiveService.setMonthlyBudget(budget);
+      final userId = _authService.getUserId();
+      if (userId != null) await HiveService.setRestoreDone('budget', userId);
+    }
+
+    await HiveService.applyRemote(
+      HiveService.getExpenseBox(),
+      parseRemoteDocs(changes.upserts, Expense.fromJson),
+      changes.deletedIds,
+    );
+    loadExpenses();
+  }
+
+  // Budgets saved before cloud sync existed live on the user doc. Read it at
+  // most once per sign-in, and only if the synced `_settings` doc had none.
+  Future<void> _restoreLegacyBudget() async {
+    final userId = _authService.getUserId();
+    if (userId == null || HiveService.isRestoreDone('budget', userId)) return;
+
+    final settings = await _firestoreService.getSettings();
+    final budget = (settings?['monthlyBudget'] as num?)?.toDouble();
+    if (budget != null) {
+      await HiveService.setMonthlyBudget(budget);
+      print('✅ Monthly budget restored: $budget');
+    }
+    await HiveService.setRestoreDone('budget', userId);
   }
 
   // Get last backup time from Firestore

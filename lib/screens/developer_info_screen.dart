@@ -230,7 +230,7 @@ class _DeveloperInfoScreenState extends State<DeveloperInfoScreen> {
           titleFontSize: 14,
           subtitle: 'arafat-mahmud.netlify.app',
           subtitleFontSize: 11,
-          onTap: () => _launchUrl('http://arafat-mahmud.netlify.app'),
+          onTap: () => _launchUrl('https://arafat-mahmud.netlify.app'),
         ),
         if (MediaQuery.of(context).size.height < 800)
           const SizedBox(height: 60),

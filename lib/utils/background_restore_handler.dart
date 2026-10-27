@@ -28,55 +28,47 @@ class BackgroundRestoreHandler {
       final budgetProvider =
           Provider.of<BudgetProvider>(context, listen: false);
 
-      // Check if there's any local data - if not, try to restore from Firestore (was Google Drive)
-      if (expenseProvider.expenses.isEmpty) {
-        print(
-            '📱 No local data found - attempting silent restore from Firestore...');
+      // Load saved data if this device needs it (silent restore) and start
+      // listening for changes from the user's other devices
+      final success = await expenseProvider.startCloudSync();
 
-        final success = await expenseProvider.restoreFromFirestore();
+      if (success) {
+        // Reload budget after restore to update UI
+        budgetProvider.reloadBudget();
 
-        if (success) {
-          // Reload budget after restore to update UI
-          budgetProvider.reloadBudget();
-
-          if (context.mounted) {
-            // Show success message with manual dismiss option
-            final scaffoldMessenger = ScaffoldMessenger.of(context);
-            scaffoldMessenger.showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.cloud_download, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Welcome back! Your data has been restored (${expenseProvider.expenses.length} items)',
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
-                      ),
+        if (context.mounted) {
+          // Show success message with manual dismiss option
+          final scaffoldMessenger = ScaffoldMessenger.of(context);
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.cloud_download, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Welcome back! Your data has been restored (${expenseProvider.expenses.length} items)',
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
                     ),
-                  ],
-                ),
-                backgroundColor: Colors.green,
-                duration: const Duration(
-                    seconds: 10), // Extended duration for user to read
-                behavior: SnackBarBehavior.floating,
-                action: SnackBarAction(
-                  label: 'OK',
-                  textColor: Colors.white,
-                  onPressed: () {
-                    // Explicitly dismiss the current snackbar
-                    scaffoldMessenger.hideCurrentSnackBar();
-                  },
-                ),
+                  ),
+                ],
               ),
-            );
-          }
-        } else if (context.mounted) {
-          print('ℹ️ No backup found or restore failed - starting fresh');
+              backgroundColor: Colors.green,
+              duration: const Duration(
+                  seconds: 10), // Extended duration for user to read
+              behavior: SnackBarBehavior.floating,
+              action: SnackBarAction(
+                label: 'OK',
+                textColor: Colors.white,
+                onPressed: () {
+                  // Explicitly dismiss the current snackbar
+                  scaffoldMessenger.hideCurrentSnackBar();
+                },
+              ),
+            ),
+          );
         }
-      } else {
-        print('📱 Local data exists - skipping automatic restore');
       }
     } catch (e) {
       print('❌ Error during background restore: $e');

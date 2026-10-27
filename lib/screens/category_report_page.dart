@@ -26,8 +26,9 @@ class _CategoryReportPageState extends State<CategoryReportPage> {
     // Reload local data
     expenseProvider.loadExpenses();
 
-    // Try to restore from Firestore
-    await expenseProvider.restoreFromFirestore();
+    // Changes from other devices already arrive through the live listener,
+    // so this only (re)starts it if it is not running. No reads otherwise.
+    await expenseProvider.startCloudSync();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

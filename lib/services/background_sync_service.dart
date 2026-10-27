@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:workmanager/workmanager.dart';
-import 'hive_service.dart';
-import 'sync_queue_service.dart';
+import 'app_check_service.dart';
 
 const String _oneOffSyncTask = 'sync_queue_one_off';
 const String _periodicSyncTask = 'sync_queue_periodic';
@@ -12,10 +12,24 @@ void backgroundSyncCallbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     WidgetsFlutterBinding.ensureInitialized();
     await Firebase.initializeApp();
-    await HiveService.init();
+    // Without it, enforced App Check would reject these background writes
+    await activateAppCheck();
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
 
-    final flushed = await SyncQueueService().flushPendingOps();
-    return Future.value(flushed);
+    // Every write is handed to Firestore's offline queue, which lives on
+    // disk. Starting Firestore here replays that queue, so no write is sent
+    // twice, and Hive (not safe across isolates) is never opened here.
+    try {
+      await FirebaseFirestore.instance
+          .waitForPendingWrites()
+          .timeout(const Duration(minutes: 2));
+      return true;
+    } catch (e) {
+      return false;
+    }
   });
 }
 

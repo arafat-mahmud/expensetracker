@@ -1,50 +1,17 @@
-import 'dart:io' show File, Directory, Platform;
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:permission_handler/permission_handler.dart';
-import 'package:open_file/open_file.dart' show OpenFile, ResultType;
 import '../models/expense_model.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/pdf_shaped_text.dart';
+import 'pdf_file_saver.dart';
 
 class LocalizedStatementService {
-  static Future<Directory> _getStorageDirectory() async {
-    if (Platform.isAndroid) {
-      try {
-        final storageStatus = await Permission.storage.request();
-        if (!storageStatus.isGranted) {
-          final manageStatus = await Permission.manageExternalStorage.request();
-          if (!manageStatus.isGranted) {
-            throw Exception(
-                'Storage permission is required to save the statement');
-          }
-        }
-
-        final directory = Directory('/storage/emulated/0/Download');
-        if (!await directory.exists()) {
-          await directory.create(recursive: true);
-        }
-
-        final testFile = File('${directory.path}/test.txt');
-        await testFile.writeAsString('test');
-        await testFile.delete();
-
-        return directory;
-      } catch (e) {
-        final directory = await getExternalStorageDirectory();
-        if (directory != null) {
-          return directory;
-        }
-      }
-    }
-
-    final directory = await getDownloadsDirectory() ??
-        await getApplicationDocumentsDirectory();
-    return directory;
-  }
+  static const double _pageMargin = 40;
+  static final double _contentWidth = PdfPageFormat.a4.width - 2 * _pageMargin;
 
   /// Generate localized PDF Statement
   static Future<void> generateLocalizedPdfStatement({
@@ -58,6 +25,44 @@ class LocalizedStatementService {
     required String languageCode,
   }) async {
     final localizations = AppLocalizations.of(context);
+    final pdfBytes = await buildLocalizedPdf(
+      startDate: startDate,
+      endDate: endDate,
+      transactions: transactions,
+      totalIncome: totalIncome,
+      totalExpense: totalExpense,
+      balance: balance,
+      localizations: localizations,
+      languageCode: languageCode,
+    );
+
+    // Save PDF
+    final filename =
+        'statement_${DateFormat('yyyyMMdd').format(startDate)}_${DateFormat('yyyyMMdd').format(endDate)}.pdf';
+
+    // Saved even if the user has left the page; only the message needs it
+    final savedTo = await PdfFileSaver.saveAndOpen(pdfBytes, filename);
+    if (savedTo != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${localizations.fileSaved} $savedTo'),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
+  /// Builds the statement PDF without saving it (also used by tests)
+  static Future<Uint8List> buildLocalizedPdf({
+    required DateTime startDate,
+    required DateTime endDate,
+    required List<Expense> transactions,
+    required double totalIncome,
+    required double totalExpense,
+    required double balance,
+    required AppLocalizations localizations,
+    required String languageCode,
+  }) async {
     final pdf = pw.Document();
 
     // Load Bangla font if needed
@@ -69,6 +74,11 @@ class LocalizedStatementService {
             await rootBundle.load('assets/fonts/NotoSansBengali-Regular.ttf');
         final fontDataBold =
             await rootBundle.load('assets/fonts/NotoSansBengali-Bold.ttf');
+        // pw.Font.ttf only parses the file while the PDF is being saved, where
+        // a broken font crashes ("Null check operator used on a null value").
+        // Parsing here lets a bad file fall back instead.
+        TtfParser(fontData);
+        TtfParser(fontDataBold);
         banglaFont = pw.Font.ttf(fontData);
         banglaFontBold = pw.Font.ttf(fontDataBold);
       } catch (e) {
@@ -77,107 +87,88 @@ class LocalizedStatementService {
       }
     }
 
+    // Bengali letters need shaping the pdf package cannot do; see PdfShapedText
+    final shaped = PdfShapedText(shapeDigits: banglaFont == null);
+
     // Sort transactions by date
     transactions.sort((a, b) => a.date.compareTo(b.date));
 
     double openingBalance = 0;
 
+    List<pw.Widget> buildContent() {
+      return [
+        // Header
+        _buildLocalizedHeader(
+            startDate, endDate, localizations, languageCode, shaped),
+
+        pw.SizedBox(height: 30),
+
+        // Account Summary
+        _buildLocalizedAccountSummary(
+          startDate,
+          endDate,
+          openingBalance,
+          totalIncome,
+          totalExpense,
+          balance,
+          transactions.length,
+          localizations,
+          languageCode,
+          shaped,
+        ),
+
+        pw.SizedBox(height: 25),
+
+        // Transaction Details Header
+        shaped.text(
+          localizations.transactionDetails,
+          style: pw.TextStyle(
+            fontSize: 11,
+            fontWeight: pw.FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
+        ),
+        pw.SizedBox(height: 12),
+
+        _buildLocalizedTransactionTable(
+            transactions, openingBalance, localizations, languageCode, shaped),
+
+        pw.SizedBox(height: 20),
+
+        // Footer
+        _buildLocalizedFooter(localizations, languageCode, shaped),
+      ];
+    }
+
+    // First pass only collects the Bengali text, which is drawn next
+    buildContent();
+    await shaped.renderPending();
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(40),
+        margin: const pw.EdgeInsets.all(_pageMargin),
         theme: banglaFont != null && banglaFontBold != null
             ? pw.ThemeData.withFont(
                 base: banglaFont,
                 bold: banglaFontBold,
+                // The Bengali font has no Latin letters or punctuation (/ . -)
+                fontFallback: [pw.Font.helvetica()],
               )
             : pw.ThemeData.base(),
-        build: (pw.Context context) {
-          return [
-            // Header
-            _buildLocalizedHeader(
-                startDate, endDate, localizations, languageCode),
-
-            pw.SizedBox(height: 30),
-
-            // Account Summary
-            _buildLocalizedAccountSummary(
-              startDate,
-              endDate,
-              openingBalance,
-              totalIncome,
-              totalExpense,
-              balance,
-              transactions.length,
-              localizations,
-              languageCode,
-            ),
-
-            pw.SizedBox(height: 25),
-
-            // Transaction Details Header
-            pw.Text(
-              localizations.transactionDetails,
-              style: pw.TextStyle(
-                fontSize: 11,
-                fontWeight: pw.FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
-            ),
-            pw.SizedBox(height: 12),
-
-            _buildLocalizedTransactionTable(
-                transactions, openingBalance, localizations, languageCode),
-
-            pw.SizedBox(height: 20),
-
-            // Footer
-            _buildLocalizedFooter(localizations, languageCode),
-          ];
-        },
+        build: (pw.Context context) => buildContent(),
       ),
     );
 
-    // Save PDF
-    final pdfBytes = await pdf.save();
-    final filename =
-        'statement_${DateFormat('yyyyMMdd').format(startDate)}_${DateFormat('yyyyMMdd').format(endDate)}.pdf';
-
-    final directory = await _getStorageDirectory();
-    if (!await directory.exists()) {
-      await directory.create(recursive: true);
-    }
-
-    final filePath = '${directory.path}/$filename';
-    final file = File(filePath);
-    await file.writeAsBytes(pdfBytes);
-
-    // Open the file
-    try {
-      final result = await OpenFile.open(filePath);
-
-      if (result.type != ResultType.done && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${localizations.fileSaved} ${directory.path}'),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${localizations.fileSaved} ${directory.path}'),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    }
+    return pdf.save();
   }
 
-  static pw.Widget _buildLocalizedHeader(DateTime startDate, DateTime endDate,
-      AppLocalizations localizations, String languageCode) {
+  static pw.Widget _buildLocalizedHeader(
+      DateTime startDate,
+      DateTime endDate,
+      AppLocalizations localizations,
+      String languageCode,
+      PdfShapedText shaped) {
     return pw.Container(
       decoration: const pw.BoxDecoration(
         border: pw.Border(
@@ -192,7 +183,7 @@ class LocalizedStatementService {
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text(
+              shaped.text(
                 localizations.appName,
                 style: pw.TextStyle(
                   fontSize: 24,
@@ -202,7 +193,7 @@ class LocalizedStatementService {
                 ),
               ),
               pw.SizedBox(height: 4),
-              pw.Text(
+              shaped.text(
                 localizations.personalFinanceManagement,
                 style: pw.TextStyle(
                   fontSize: 9,
@@ -214,7 +205,7 @@ class LocalizedStatementService {
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
-              pw.Text(
+              shaped.text(
                 localizations.accountStatement,
                 style: pw.TextStyle(
                   fontSize: 14,
@@ -223,14 +214,14 @@ class LocalizedStatementService {
                 ),
               ),
               pw.SizedBox(height: 8),
-              pw.Text(
+              shaped.text(
                 localizations.statementPeriod,
                 style: const pw.TextStyle(
                   fontSize: 8,
                   color: PdfColors.grey600,
                 ),
               ),
-              pw.Text(
+              shaped.text(
                 _formatDateRange(startDate, endDate, languageCode),
                 style: pw.TextStyle(
                   fontSize: 9,
@@ -238,7 +229,7 @@ class LocalizedStatementService {
                 ),
               ),
               pw.SizedBox(height: 6),
-              pw.Text(
+              shaped.text(
                 _formatGeneratedDate(DateTime.now(), languageCode),
                 style: const pw.TextStyle(
                   fontSize: 7,
@@ -262,6 +253,7 @@ class LocalizedStatementService {
     int transactionCount,
     AppLocalizations localizations,
     String languageCode,
+    PdfShapedText shaped,
   ) {
     return pw.Container(
       decoration: pw.BoxDecoration(
@@ -275,7 +267,7 @@ class LocalizedStatementService {
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(
+              shaped.text(
                 localizations.accountSummary,
                 style: pw.TextStyle(
                   fontSize: 10,
@@ -283,7 +275,7 @@ class LocalizedStatementService {
                   letterSpacing: 0.5,
                 ),
               ),
-              pw.Text(
+              shaped.text(
                 '${_convertToLocalDigits(transactionCount.toString(), languageCode)} ${localizations.transactions}',
                 style: const pw.TextStyle(
                   fontSize: 8,
@@ -299,19 +291,20 @@ class LocalizedStatementService {
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               _buildLocalizedSummaryColumn(localizations.openingBalance,
-                  openingBalance, PdfColors.blue800, languageCode),
+                  openingBalance, PdfColors.blue800, languageCode, shaped),
               pw.Container(width: 1, height: 40, color: PdfColors.grey300),
               _buildLocalizedSummaryColumn(localizations.credit, totalIncome,
-                  PdfColors.green700, languageCode),
+                  PdfColors.green700, languageCode, shaped),
               pw.Container(width: 1, height: 40, color: PdfColors.grey300),
               _buildLocalizedSummaryColumn(localizations.debit, totalExpense,
-                  PdfColors.red700, languageCode),
+                  PdfColors.red700, languageCode, shaped),
               pw.Container(width: 1, height: 40, color: PdfColors.grey300),
               _buildLocalizedSummaryColumn(
                 localizations.closingBalance,
                 closingBalance,
                 closingBalance >= 0 ? PdfColors.green700 : PdfColors.red700,
                 languageCode,
+                shaped,
               ),
             ],
           ),
@@ -320,21 +313,24 @@ class LocalizedStatementService {
     );
   }
 
-  static pw.Widget _buildLocalizedSummaryColumn(
-      String label, double amount, PdfColor color, String languageCode) {
+  static pw.Widget _buildLocalizedSummaryColumn(String label, double amount,
+      PdfColor color, String languageCode, PdfShapedText shaped) {
+    // A quarter of the summary box, less its padding and dividers
+    final labelWidth = (_contentWidth - 40) / 4;
     return pw.Expanded(
       child: pw.Column(
         children: [
-          pw.Text(
+          shaped.text(
             label,
             style: const pw.TextStyle(
               fontSize: 8,
               color: PdfColors.grey600,
             ),
             textAlign: pw.TextAlign.center,
+            maxWidth: labelWidth,
           ),
           pw.SizedBox(height: 6),
-          pw.Text(
+          shaped.text(
             _formatCurrency(amount, languageCode),
             style: pw.TextStyle(
               fontSize: 11,
@@ -352,39 +348,50 @@ class LocalizedStatementService {
       List<Expense> transactions,
       double openingBalance,
       AppLocalizations localizations,
-      String languageCode) {
+      String languageCode,
+      PdfShapedText shaped) {
     double runningBalance = openingBalance;
+
+    const columnFlex = [1.5, 3.0, 2.0, 2.0, 2.0];
+    final totalFlex = columnFlex.reduce((a, b) => a + b);
+    // Room for text in each column: its share of the page, less cell padding
+    // and borders
+    final textWidths = [
+      for (final flex in columnFlex) _contentWidth * flex / totalFlex - 14,
+    ];
+    pw.Widget cell(int column, String text,
+            {bool isHeader = false, bool isBold = false}) =>
+        _buildTableCell(text, shaped,
+            maxWidth: textWidths[column], isHeader: isHeader, isBold: isBold);
 
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey300),
+      defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
       columnWidths: {
-        0: const pw.FlexColumnWidth(1.5),
-        1: const pw.FlexColumnWidth(3),
-        2: const pw.FlexColumnWidth(2),
-        3: const pw.FlexColumnWidth(2),
-        4: const pw.FlexColumnWidth(2),
+        for (var i = 0; i < columnFlex.length; i++)
+          i: pw.FlexColumnWidth(columnFlex[i]),
       },
       children: [
         // Header Row
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: PdfColors.grey200),
           children: [
-            _buildTableCell(localizations.date, isHeader: true),
-            _buildTableCell(localizations.description, isHeader: true),
-            _buildTableCell(localizations.debit, isHeader: true),
-            _buildTableCell(localizations.credit, isHeader: true),
-            _buildTableCell(localizations.balance, isHeader: true),
+            cell(0, localizations.date, isHeader: true),
+            cell(1, localizations.description, isHeader: true),
+            cell(2, localizations.debit, isHeader: true),
+            cell(3, localizations.credit, isHeader: true),
+            cell(4, localizations.balance, isHeader: true),
           ],
         ),
         // Opening Balance Row
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: PdfColors.blue50),
           children: [
-            _buildTableCell(''),
-            _buildTableCell(localizations.openingBalance, isBold: true),
-            _buildTableCell(''),
-            _buildTableCell(''),
-            _buildTableCell(_formatCurrency(runningBalance, languageCode),
+            cell(0, ''),
+            cell(1, localizations.openingBalance, isBold: true),
+            cell(2, ''),
+            cell(3, ''),
+            cell(4, _formatCurrency(runningBalance, languageCode),
                 isBold: true),
           ],
         ),
@@ -401,15 +408,19 @@ class LocalizedStatementService {
 
           return pw.TableRow(
             children: [
-              _buildTableCell(_formatDate(expense.date, languageCode)),
-              _buildTableCell(categoryLabel),
-              _buildTableCell(expense.isCredit
-                  ? ''
-                  : _formatCurrency(expense.amount, languageCode)),
-              _buildTableCell(expense.isCredit
-                  ? _formatCurrency(expense.amount, languageCode)
-                  : ''),
-              _buildTableCell(_formatCurrency(runningBalance, languageCode)),
+              cell(0, _formatDate(expense.date, languageCode)),
+              cell(1, categoryLabel),
+              cell(
+                  2,
+                  expense.isCredit
+                      ? ''
+                      : _formatCurrency(expense.amount, languageCode)),
+              cell(
+                  3,
+                  expense.isCredit
+                      ? _formatCurrency(expense.amount, languageCode)
+                      : ''),
+              cell(4, _formatCurrency(runningBalance, languageCode)),
             ],
           );
         }),
@@ -417,11 +428,11 @@ class LocalizedStatementService {
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: PdfColors.green50),
           children: [
-            _buildTableCell(''),
-            _buildTableCell(localizations.closingBalance, isBold: true),
-            _buildTableCell(''),
-            _buildTableCell(''),
-            _buildTableCell(_formatCurrency(runningBalance, languageCode),
+            cell(0, ''),
+            cell(1, localizations.closingBalance, isBold: true),
+            cell(2, ''),
+            cell(3, ''),
+            cell(4, _formatCurrency(runningBalance, languageCode),
                 isBold: true),
           ],
         ),
@@ -429,11 +440,11 @@ class LocalizedStatementService {
     );
   }
 
-  static pw.Widget _buildTableCell(String text,
-      {bool isHeader = false, bool isBold = false}) {
+  static pw.Widget _buildTableCell(String text, PdfShapedText shaped,
+      {double? maxWidth, bool isHeader = false, bool isBold = false}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(6),
-      child: pw.Text(
+      child: shaped.text(
         text,
         style: pw.TextStyle(
           fontSize: isHeader ? 9 : 8,
@@ -442,12 +453,15 @@ class LocalizedStatementService {
           color: isHeader ? PdfColors.grey800 : PdfColors.black,
         ),
         textAlign: pw.TextAlign.center,
+        maxWidth: maxWidth,
       ),
     );
   }
 
-  static pw.Widget _buildLocalizedFooter(
-      AppLocalizations localizations, String languageCode) {
+  static pw.Widget _buildLocalizedFooter(AppLocalizations localizations,
+      String languageCode, PdfShapedText shaped) {
+    // Footer box width less its padding
+    final textWidth = _contentWidth - 24;
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
@@ -457,20 +471,22 @@ class LocalizedStatementService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(
+          shaped.text(
             localizations.statementFooter,
             style: const pw.TextStyle(
               fontSize: 7,
               color: PdfColors.grey700,
             ),
+            maxWidth: textWidth,
           ),
           pw.SizedBox(height: 4),
-          pw.Text(
+          shaped.text(
             localizations.thisStatementIsGenerated,
             style: const pw.TextStyle(
               fontSize: 7,
               color: PdfColors.grey700,
             ),
+            maxWidth: textWidth,
           ),
         ],
       ),

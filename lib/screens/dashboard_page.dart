@@ -103,12 +103,10 @@ class _DashboardPageState extends State<DashboardPage> {
     expenseProvider.loadExpenses();
     budgetProvider.reloadBudget();
 
-    // Try to restore from Firestore (was Google Drive)
-    await expenseProvider.restoreFromFirestore();
+    // Changes from other devices already arrive through the live listener,
+    // so this only (re)starts it if it is not running. No reads otherwise.
+    await expenseProvider.startCloudSync();
     budgetProvider.reloadBudget();
-
-    // Update last backup time
-    await expenseProvider.getLastBackupTime();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
