@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/expense_model.dart';
 import '../l10n/app_localizations.dart';
+import '../theme/app_format.dart';
+import '../theme/app_theme.dart';
+import 'ui/app_ui.dart';
 
+/// One transaction row. Rows are meant to sit inside a card, separated by
+/// dividers (see the history and category screens).
 class ExpenseCard extends StatelessWidget {
   final Expense expense;
   final VoidCallback? onTap;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+
+  /// Hide the date when the list is already grouped by day
+  final bool showDate;
 
   const ExpenseCard({
     super.key,
@@ -15,144 +22,143 @@ class ExpenseCard extends StatelessWidget {
     this.onTap,
     this.onEdit,
     this.onDelete,
+    this.showDate = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Get the appropriate category color and icon based on transaction type
+    final l = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final palette = AppPalette.of(context);
+
     final isCredit = expense.isCredit;
-    final categoryColor = isCredit
-        ? Color(IncomeCategory.getCategoryColor(expense.category)['color']!)
-        : Color(ExpenseCategory.getCategoryColor(expense.category)['color']!);
-    final categoryIcon = isCredit
+    final categoryColor = Color(isCredit
+        ? IncomeCategory.getCategoryColor(expense.category)['color']!
+        : ExpenseCategory.getCategoryColor(expense.category)['color']!);
+    final emoji = isCredit
         ? IncomeCategory.getIcon(expense.category)
         : ExpenseCategory.getIcon(expense.category);
+    final categoryName = l.getCategoryName(expense.category);
+    // Untitled entries are saved with the category key as their title
+    final title = expense.title == expense.category ? categoryName : expense.title;
+    final subtitle = [
+      if (title != categoryName) categoryName,
+      if (showDate) AppFormat.date(context, expense.date),
+    ].join(' · ');
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // Category Icon
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: categoryColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: Text(
-                    categoryIcon,
-                    style: const TextStyle(fontSize: 24),
+    return InkWell(
+      onTap: onTap ?? onEdit,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 4, 12),
+        child: Row(
+          children: [
+            IconBadge(emoji: emoji, color: categoryColor, size: 44),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.titleSmall,
                   ),
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // Expense Details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 2),
                     Text(
-                      expense.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                      subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Text(
-                          AppLocalizations.of(context)!
-                              .getCategoryName(expense.category),
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: categoryColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '•',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          DateFormat('MMM dd, yyyy').format(expense.date),
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                    if (expense.note.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        expense.note,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey,
-                            ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
                   ],
-                ),
-              ),
-
-              // Amount and Actions
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '${isCredit ? '+' : '-'}${expense.amount.toStringAsFixed(2)}',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: isCredit ? Colors.green : Colors.red,
-                                ),
+                  if (expense.note.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      expense.note,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
                       ),
-                    ],
-                  ),
-                  if (onEdit != null || onDelete != null) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (onEdit != null)
-                          InkWell(
-                            onTap: onEdit,
-                            child: const Icon(Icons.edit, size: 18),
-                          ),
-                        if (onEdit != null && onDelete != null)
-                          const SizedBox(width: 12),
-                        if (onDelete != null)
-                          InkWell(
-                            onTap: onDelete,
-                            child: const Icon(
-                              Icons.delete,
-                              size: 18,
-                              color: Colors.red,
-                            ),
-                          ),
-                      ],
                     ),
                   ],
                 ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              AppFormat.money(
+                  context, isCredit ? expense.amount : -expense.amount,
+                  signed: true),
+              style: textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: isCredit ? palette.income : scheme.onSurface,
+              ),
+            ),
+            if (onEdit != null || onDelete != null)
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert_rounded,
+                    size: 20, color: scheme.onSurfaceVariant),
+                tooltip: '',
+                onSelected: (value) {
+                  if (value == 'edit') onEdit?.call();
+                  if (value == 'delete') onDelete?.call();
+                },
+                itemBuilder: (context) => [
+                  if (onEdit != null)
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_outlined,
+                              size: 20, color: scheme.onSurfaceVariant),
+                          const SizedBox(width: 12),
+                          Text(l.edit),
+                        ],
+                      ),
+                    ),
+                  if (onDelete != null)
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline_rounded,
+                              size: 20, color: scheme.error),
+                          const SizedBox(width: 12),
+                          Text(l.delete, style: TextStyle(color: scheme.error)),
+                        ],
+                      ),
+                    ),
+                ],
+              )
+            else
+              const SizedBox(width: 12),
+          ],
         ),
       ),
     );
   }
+}
+
+/// Asks before deleting a transaction, then deletes it and confirms
+Future<void> confirmAndDeleteExpense(
+  BuildContext context,
+  Expense expense,
+  Future<void> Function(String id) delete,
+) async {
+  final l = AppLocalizations.of(context);
+  final confirmed = await showConfirmDialog(
+    context,
+    title: l.deleteTransactionTitle,
+    message: l.deleteCannotUndo,
+    confirmLabel: l.delete,
+  );
+  if (!confirmed || !context.mounted) return;
+  await delete(expense.id);
+  if (context.mounted) showAppSnack(context, l.transactionDeleted);
 }

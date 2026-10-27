@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../providers/theme_provider.dart';
 import '../providers/budget_provider.dart';
 import '../providers/expense_provider.dart';
@@ -8,6 +8,9 @@ import '../providers/auth_provider.dart';
 import '../providers/language_provider.dart';
 import '../providers/mode_provider.dart';
 import '../l10n/app_localizations.dart';
+import '../theme/app_format.dart';
+import '../theme/app_theme.dart';
+import '../widgets/ui/app_ui.dart';
 import 'developer_info_screen.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -18,6 +21,10 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  static const _deleteConfirmation = 'DELETE ALL DATA';
+
+  late final Future<PackageInfo> _packageInfo = PackageInfo.fromPlatform();
+
   Future<void> _handleRefresh() async {
     final budgetProvider = Provider.of<BudgetProvider>(context, listen: false);
     final expenseProvider =
@@ -26,650 +33,534 @@ class _SettingsPageState extends State<SettingsPage> {
     // Reload local data
     budgetProvider.reloadBudget();
     expenseProvider.loadExpenses();
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.refresh, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Settings refreshed'),
-            ],
-          ),
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final budgetProvider = Provider.of<BudgetProvider>(context);
-    final expenseProvider = Provider.of<ExpenseProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final languageProvider = Provider.of<LanguageProvider>(context);
     final modeProvider = Provider.of<ModeProvider>(context);
-    final localizations = AppLocalizations.of(context);
+    final l = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final palette = AppPalette.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          localizations.settings,
-          style: languageProvider.languageCode == 'bn'
-              ? const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                )
-              : GoogleFonts.rubik80sFade(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                ),
-        ),
-      ),
+      appBar: AppBar(title: Text(l.settings)),
       body: RefreshIndicator(
         onRefresh: _handleRefresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: [
-            // User Profile Section
-            if (authProvider.isAuthenticated)
-              Card(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: authProvider.getUserPhotoURL() != null
-                        ? NetworkImage(authProvider.getUserPhotoURL()!)
-                        : null,
-                    child: authProvider.getUserPhotoURL() == null
-                        ? const Icon(Icons.person)
-                        : null,
-                  ),
-                  title: Text(
-                    authProvider.getUserDisplayName() ?? localizations.account,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(authProvider.getUserEmail() ?? ''),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.logout, color: Colors.red),
-                    onPressed: () => _showSignOutDialog(
-                        context, authProvider, localizations),
-                  ),
-                ),
+            if (authProvider.isAuthenticated) ...[
+              _ProfileCard(
+                name: authProvider.getUserDisplayName() ?? l.account,
+                email: authProvider.getUserEmail() ?? '',
+                photoUrl: authProvider.getUserPhotoURL(),
               ),
-            if (authProvider.isAuthenticated) const SizedBox(height: 16),
-
-            // Statement Section
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.download),
-                title: Text(localizations.downloadStatement),
-                subtitle: Text(localizations.generateStatement),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.pushNamed(context, '/statement');
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // App Mode Section
-            Text(
-              localizations.appMode,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Card(
-              child: ListTile(
-                leading: Icon(
-                  modeProvider.isDepositMode
-                      ? Icons.savings
-                      : Icons.account_balance_wallet,
-                  color:
-                      modeProvider.isDepositMode ? Colors.blue : Colors.green,
-                ),
-                title: Text(localizations.appMode),
-                subtitle: Text(modeProvider.isDepositMode
-                    ? localizations.depositMode
-                    : localizations.expenseMode),
-                trailing: Switch(
-                  value: modeProvider.isDepositMode,
-                  onChanged: (value) {
-                    modeProvider.toggleMode();
-                    Navigator.pushReplacementNamed(context, '/');
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Appearance Section
-            Text(
-              localizations.appearance,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: Icon(
-                      themeProvider.isDarkMode
-                          ? Icons.dark_mode
-                          : Icons.light_mode,
-                    ),
-                    title: Text(localizations.darkMode),
-                    trailing: Switch(
-                      value: themeProvider.isDarkMode,
-                      onChanged: (value) {
-                        themeProvider.toggleTheme();
-                      },
-                    ),
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.language),
-                    title: Text(localizations.language),
-                    subtitle: Text(languageProvider.languageName),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      _showLanguageDialog(
-                          context, languageProvider, localizations);
+              const SizedBox(height: 24),
+            ],
+            SettingsGroup(
+              title: l.general,
+              children: [
+                SettingsTile(
+                  icon: modeProvider.isDepositMode
+                      ? Icons.savings_rounded
+                      : Icons.account_balance_wallet_rounded,
+                  iconColor: scheme.primary,
+                  title: l.appMode,
+                  subtitle: modeProvider.isDepositMode
+                      ? l.depositMode
+                      : l.expenseMode,
+                  trailing: Switch(
+                    value: modeProvider.isDepositMode,
+                    onChanged: (_) {
+                      modeProvider.toggleMode();
+                      Navigator.pushReplacementNamed(context, '/');
                     },
                   ),
-                ],
-              ),
+                ),
+                SettingsTile(
+                  icon: Icons.pie_chart_rounded,
+                  iconColor: palette.income,
+                  title: l.monthlyBudget,
+                  subtitle: AppFormat.money(
+                      context, budgetProvider.monthlyBudget,
+                      decimals: 0),
+                  onTap: () => _showBudgetDialog(budgetProvider),
+                ),
+                SettingsTile(
+                  icon: Icons.description_rounded,
+                  iconColor: palette.violet,
+                  title: l.downloadStatement,
+                  subtitle: l.generateStatement,
+                  onTap: () => Navigator.pushNamed(context, '/statement'),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-
-            // Budget Section
-            Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.account_balance_wallet),
-                    title: Text(localizations.monthlyBudget),
-                    subtitle: Text(
-                        '${budgetProvider.monthlyBudget.toStringAsFixed(0)}'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.edit),
-                      onPressed: () {
-                        _showBudgetDialog(
-                            context, budgetProvider, localizations);
-                      },
+            const SizedBox(height: 24),
+            SettingsGroup(
+              title: l.appearance,
+              children: [
+                SettingsTile(
+                  icon: themeProvider.isDarkMode
+                      ? Icons.dark_mode_rounded
+                      : Icons.light_mode_rounded,
+                  iconColor: palette.violet,
+                  title: l.darkMode,
+                  trailing: Switch(
+                    value: themeProvider.isDarkMode,
+                    onChanged: (_) => themeProvider.toggleTheme(),
+                  ),
+                ),
+                SettingsTile(
+                  icon: Icons.translate_rounded,
+                  iconColor: palette.warning,
+                  title: l.language,
+                  subtitle: languageProvider.languageName,
+                  onTap: () => _showLanguagePicker(languageProvider),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            SettingsGroup(
+              title: l.about,
+              children: [
+                SettingsTile(
+                  icon: Icons.person_rounded,
+                  iconColor: scheme.primary,
+                  title: l.developerInfo,
+                  subtitle: l.developerInfoSubtitle,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const DeveloperInfoScreen()),
+                  ),
+                ),
+                FutureBuilder<PackageInfo>(
+                  future: _packageInfo,
+                  builder: (context, snapshot) => SettingsTile(
+                    icon: Icons.info_rounded,
+                    iconColor: scheme.onSurfaceVariant,
+                    title: l.version,
+                    trailing: Text(
+                      snapshot.data?.version ?? '1.0.0',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-
-            // App Info Section
-            Card(
-              child: Column(
+            if (authProvider.isAuthenticated) ...[
+              const SizedBox(height: 24),
+              SettingsGroup(
+                title: l.account,
                 children: [
-                  ListTile(
-                    leading: const Icon(Icons.info),
-                    title: Text(localizations.version),
-                    subtitle: const Text('1.0.0'),
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.person),
-                    title: Text(localizations.developerInfo),
-                    subtitle: const Text('Developer information and contact'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const DeveloperInfoScreen(),
-                        ),
-                      );
-                    },
+                  SettingsTile(
+                    icon: Icons.logout_rounded,
+                    iconColor: scheme.error,
+                    title: l.signOut,
+                    onTap: () => _signOut(authProvider),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-
-            // Data Management Section
-            Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.delete_sweep, color: Colors.red),
-                    title: Text(
-                      localizations.clearAllData,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                    subtitle: const Text('Permanent deletion all history'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      _showClearDataDialog(
-                          context, expenseProvider, localizations);
-                    },
-                  ),
-                ],
-              ),
+            ],
+            const SizedBox(height: 24),
+            SettingsGroup(
+              title: l.dangerZone,
+              children: [
+                SettingsTile(
+                  icon: Icons.delete_forever_rounded,
+                  iconColor: scheme.error,
+                  title: l.clearAllData,
+                  subtitle: l.clearAllDataSubtitle,
+                  destructive: true,
+                  onTap: _startPermanentDeletion,
+                ),
+              ],
             ),
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNavBar(context),
+      bottomNavigationBar: const AppNavigationBar(currentIndex: 2),
     );
   }
 
-  void _showSignOutDialog(BuildContext context, AuthProvider authProvider,
-      AppLocalizations localizations) {
-    showDialog(
+  Future<void> _signOut(AuthProvider authProvider) async {
+    final l = AppLocalizations.of(context);
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l.signOut,
+      message: l.signOutConfirm,
+      confirmLabel: l.signOut,
+      icon: Icons.logout_rounded,
+    );
+    if (!confirmed) return;
+
+    await authProvider.signOut();
+    if (!mounted) return;
+    // Back to the sign-in screen
+    Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+  }
+
+  void _showLanguagePicker(LanguageProvider languageProvider) {
+    final l = AppLocalizations.of(context);
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(localizations.signOut),
-        content: Text(localizations.signOutConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(localizations.cancel),
-          ),
-          TextButton(
-            onPressed: () async {
-              await authProvider.signOut();
-              if (context.mounted) {
-                Navigator.pop(context); // Close the dialog
-                // Navigate to login page by popping all routes
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/',
-                  (route) => false,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(localizations.signOut)),
-                );
-              }
-            },
-            child: Text(
-              localizations.signOut,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showLanguageDialog(BuildContext context,
-      LanguageProvider languageProvider, AppLocalizations localizations) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(localizations.selectLanguage),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: languageProvider.supportedLanguages.map((lang) {
-            final isSelected = languageProvider.languageCode == lang['code'];
-            return RadioListTile<String>(
-              title: Text(lang['name']!),
-              value: lang['code']!,
-              groupValue: languageProvider.languageCode,
-              selected: isSelected,
-              onChanged: (value) {
-                if (value != null) {
-                  languageProvider.changeLanguage(value);
-                  Navigator.pop(context);
-                }
-              },
-            );
-          }).toList(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(localizations.cancel),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showBudgetDialog(BuildContext context, BudgetProvider budgetProvider,
-      AppLocalizations localizations) {
-    final TextEditingController controller = TextEditingController(
-      text: budgetProvider.monthlyBudget.toStringAsFixed(0),
-    );
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(localizations.setBudget),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: localizations.amount,
-            prefixIcon: const Icon(Icons.account_balance_wallet),
-            border: const OutlineInputBorder(),
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(localizations.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              final budget = double.tryParse(controller.text);
-              if (budget != null && budget > 0) {
-                // Close dialog immediately
-                Navigator.pop(context);
-
-                // Update budget - instant UI update via notifyListeners()
-                budgetProvider.setMonthlyBudget(budget);
-
-                // Show success feedback
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: [
-                        const Icon(Icons.check_circle, color: Colors.white),
-                        const SizedBox(width: 8),
-                        Text(
-                            '${localizations.budgetUpdated} ${budget.toStringAsFixed(0)}'),
-                      ],
-                    ),
-                    backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 2),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(localizations.enterValidAmount),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            child: Text(localizations.save),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showClearDataDialog(BuildContext context,
-      ExpenseProvider expenseProvider, AppLocalizations localizations) {
-    // Directly show permanent deletion confirmation
-    _showPermanentDeleteConfirmation(context, expenseProvider, localizations);
-  }
-
-  void _showPermanentDeleteConfirmation(BuildContext context,
-      ExpenseProvider expenseProvider, AppLocalizations localizations) {
-    final TextEditingController confirmController = TextEditingController();
-    bool isConfirmValid = false;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          icon: const Icon(
-            Icons.delete_forever,
-            color: Colors.red,
-            size: 44,
-          ),
-          title: const Text(
-            'PERMANENT DELETION',
-            style: TextStyle(
-              color: Colors.red,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
-          ),
-          content: SingleChildScrollView(
+      builder: (sheetContext) {
+        final scheme = Theme.of(sheetContext).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red, width: 2),
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'THIS ACTION WILL:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red,
-                          fontSize: 13,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        '• Delete ALL expenses from your device',
-                        style: TextStyle(fontSize: 11),
-                      ),
-                      Text(
-                        '• Delete ALL backups from Firestore Cloud',
-                        style: TextStyle(fontSize: 11),
-                      ),
-                      Text(
-                        '• Make data recovery IMPOSSIBLE',
-                        style: TextStyle(fontSize: 11),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'This action is IRREVERSIBLE!',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                  child: Text(l.selectLanguage,
+                      style: Theme.of(sheetContext).textTheme.titleLarge),
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  'To confirm permanent deletion, type "DELETE ALL DATA" below:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: confirmController,
-                  decoration: InputDecoration(
-                    hintText: 'DELETE ALL DATA',
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: isConfirmValid ? Colors.red : Colors.grey,
-                      ),
-                    ),
-                    focusedBorder: const OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.red, width: 2),
-                    ),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      isConfirmValid = value.trim() == 'DELETE ALL DATA';
-                    });
-                  },
-                ),
-                if (isConfirmValid)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.green, size: 16),
-                        SizedBox(width: 4),
-                        Text(
-                          'Confirmation text verified',
-                          style: TextStyle(color: Colors.green, fontSize: 12),
+                for (final language in languageProvider.supportedLanguages)
+                  Builder(builder: (context) {
+                    final selected =
+                        languageProvider.languageCode == language['code'];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: selected
+                                ? scheme.primary
+                                : scheme.outlineVariant,
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
+                        tileColor: selected
+                            ? scheme.primaryContainer
+                            : scheme.surfaceContainerLow,
+                        leading: IconBadge(
+                          icon: Icons.translate_rounded,
+                          color: scheme.primary,
+                          size: 38,
+                        ),
+                        title: Text(language['name']!),
+                        trailing: selected
+                            ? Icon(Icons.check_circle_rounded,
+                                color: scheme.primary)
+                            : null,
+                        onTap: () {
+                          languageProvider.changeLanguage(language['code']!);
+                          Navigator.pop(sheetContext);
+                        },
+                      ),
+                    );
+                  }),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: isConfirmValid
-                  ? () {
-                      Navigator.pop(context);
-                      _showFinalWarning(context, expenseProvider);
-                    }
-                  : null,
-              child: Text(
-                'Continue',
-                style: TextStyle(
-                  color: isConfirmValid ? Colors.red : Colors.grey,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 
-  void _showFinalWarning(
-      BuildContext context, ExpenseProvider expenseProvider) {
-    showDialog(
+  Future<void> _showBudgetDialog(BudgetProvider budgetProvider) async {
+    final l = AppLocalizations.of(context);
+    final controller = TextEditingController(
+      text: budgetProvider.monthlyBudget.toStringAsFixed(0),
+    );
+    String? error;
+
+    final budget = await showDialog<double>(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        icon: const Icon(
-          Icons.error,
-          color: Colors.red,
-          size: 72,
-        ),
-        title: const Text(
-          'FINAL WARNING',
-          style: TextStyle(
-            color: Colors.red,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          icon: IconBadge(
+            icon: Icons.pie_chart_rounded,
+            color: AppPalette.of(dialogContext).income,
+            size: 52,
           ),
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'This is your LAST CHANCE to cancel.',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-              textAlign: TextAlign.center,
+          title: Text(l.setBudget, textAlign: TextAlign.center),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: l.amount,
+              prefixText: '৳ ',
+              errorText: error,
             ),
-            SizedBox(height: 16),
-            Text(
-              'Once you click "DELETE PERMANENTLY", all your expense data will be gone forever and cannot be recovered.',
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Are you absolutely sure?',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
-              ),
-              textAlign: TextAlign.center,
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: Text(l.cancel),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () {
+                      final value = AppFormat.parseAmount(controller.text);
+                      if (value == null || value <= 0) {
+                        setDialogState(() => error = l.enterValidAmount);
+                        return;
+                      }
+                      Navigator.pop(dialogContext, value);
+                    },
+                    child: Text(l.save),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cancel - Keep My Data',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-
-              // Show fast deletion dialog with countdown
-              _showFastDeletionDialog(context, expenseProvider);
-            },
-            child: const Text(
-              'DELETE PERMANENTLY',
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
       ),
     );
+    controller.dispose();
+
+    if (budget == null || !mounted) return;
+    budgetProvider.setMonthlyBudget(budget);
+    showAppSnack(context,
+        '${l.budgetUpdated} ${AppFormat.money(context, budget, decimals: 0)}');
   }
 
-  void _showFastDeletionDialog(
-      BuildContext context, ExpenseProvider expenseProvider) {
+  /// Three deliberate steps: type the confirmation text, read a final
+  /// warning, then a short countdown before anything is deleted
+  Future<void> _startPermanentDeletion() async {
+    final typed = await _askForConfirmationText();
+    if (!typed || !mounted) return;
+
+    final l = AppLocalizations.of(context);
+    final confirmed = await showConfirmDialog(
+      context,
+      title: l.finalWarning,
+      message: l.finalWarningMessage,
+      confirmLabel: l.deletePermanently,
+      cancelLabel: l.keepMyData,
+      icon: Icons.warning_amber_rounded,
+    );
+    if (!confirmed || !mounted) return;
+
+    final expenseProvider =
+        Provider.of<ExpenseProvider>(context, listen: false);
     Navigator.of(context).push(
       PageRouteBuilder(
         opaque: false,
         barrierDismissible: false,
-        pageBuilder: (context, _, __) => _DeletionProgressDialog(
-          expenseProvider: expenseProvider,
-        ),
+        pageBuilder: (context, _, __) =>
+            _DeletionProgressDialog(expenseProvider: expenseProvider),
       ),
     );
   }
 
-  Widget _buildBottomNavBar(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
+  Future<bool> _askForConfirmationText() async {
+    final l = AppLocalizations.of(context);
+    final controller = TextEditingController();
+    var valid = false;
 
-    return BottomNavigationBar(
-      currentIndex: 2,
-      onTap: (index) {
-        if (index == 0) {
-          Navigator.pushReplacementNamed(context, '/');
-        } else if (index == 1) {
-          Navigator.pushReplacementNamed(context, '/history');
-        }
-      },
-      items: [
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.dashboard),
-          label: localizations.dashboard,
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.history),
-          label: localizations.history,
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.settings),
-          label: localizations.settings,
-        ),
-      ],
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final scheme = Theme.of(dialogContext).colorScheme;
+          final textTheme = Theme.of(dialogContext).textTheme;
+          Widget point(String text) => Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.close_rounded,
+                        size: 16, color: scheme.onErrorContainer),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        text,
+                        style: textTheme.bodySmall
+                            ?.copyWith(color: scheme.onErrorContainer),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+
+          return AlertDialog(
+            icon: IconBadge(
+              icon: Icons.delete_forever_rounded,
+              color: scheme.error,
+              size: 52,
+            ),
+            title: Text(l.permanentDeletion, textAlign: TextAlign.center),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: scheme.errorContainer,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l.deletionWillTitle,
+                          style: textTheme.labelLarge
+                              ?.copyWith(color: scheme.onErrorContainer),
+                        ),
+                        point(l.deletionPointDevice),
+                        point(l.deletionPointCloud),
+                        point(l.deletionPointRecovery),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(l.typeToConfirm,
+                      style: textTheme.bodyMedium
+                          ?.copyWith(color: scheme.onSurface)),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: controller,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration:
+                        const InputDecoration(hintText: _deleteConfirmation),
+                    onChanged: (value) => setDialogState(() =>
+                        valid = value.trim() == _deleteConfirmation),
+                  ),
+                  if (valid)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle_rounded,
+                              size: 16,
+                              color: AppPalette.of(dialogContext).income),
+                          const SizedBox(width: 6),
+                          Text(
+                            l.confirmTextVerified,
+                            style: textTheme.bodySmall?.copyWith(
+                                color: AppPalette.of(dialogContext).income),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      child: Text(l.cancel),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: scheme.error,
+                        foregroundColor: scheme.onError,
+                      ),
+                      onPressed: valid
+                          ? () => Navigator.pop(dialogContext, true)
+                          : null,
+                      child: Text(l.continueLabel),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    controller.dispose();
+    return result ?? false;
+  }
+}
+
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard({
+    required this.name,
+    required this.email,
+    required this.photoUrl,
+  });
+
+  final String name;
+  final String email;
+  final String? photoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: AppColors.heroGradient,
+        borderRadius: BorderRadius.circular(AppTheme.radius),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+            ),
+            child: CircleAvatar(
+              radius: 28,
+              backgroundColor: scheme.primaryContainer,
+              foregroundImage:
+                  photoUrl == null ? null : NetworkImage(photoUrl!),
+              child: Icon(Icons.person_rounded,
+                  color: scheme.onPrimaryContainer, size: 28),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.75),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.verified_user_rounded,
+              color: Colors.white.withValues(alpha: 0.8)),
+        ],
+      ),
     );
   }
 }
@@ -686,28 +577,16 @@ class _DeletionProgressDialog extends StatefulWidget {
       _DeletionProgressDialogState();
 }
 
-class _DeletionProgressDialogState extends State<_DeletionProgressDialog>
-    with TickerProviderStateMixin {
+class _DeletionProgressDialogState extends State<_DeletionProgressDialog> {
   int countdown = 3;
   bool deletionCompleted = false;
   bool deletionStarted = false;
-  late AnimationController _animationController;
   int deletionTimeElapsed = 0;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(seconds: 1),
-      vsync: this,
-    )..repeat();
     _startDeletionProcess();
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
   }
 
   Future<void> _startDeletionProcess() async {
@@ -742,126 +621,89 @@ class _DeletionProgressDialogState extends State<_DeletionProgressDialog>
     });
 
     // Perform permanent deletion
-    final stopwatch = Stopwatch()..start();
     final success = await widget.expenseProvider.permanentlyDeleteAllData();
-    stopwatch.stop();
 
     if (!mounted) return;
 
     // Reload budget provider to reflect the reset budget
-    if (mounted) {
-      final budgetProvider =
-          Provider.of<BudgetProvider>(context, listen: false);
-      budgetProvider.reloadBudget();
-    }
+    Provider.of<BudgetProvider>(context, listen: false).reloadBudget();
 
     // Show completion
     setState(() {
       deletionCompleted = true;
     });
 
-    _animationController.stop();
-
     // Auto-close after showing completion
     await Future.delayed(const Duration(milliseconds: 1500));
 
     if (mounted) {
+      final l = AppLocalizations.of(context);
       Navigator.of(context).pop(); // Close dialog
-
-      // Show final result
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                success ? Icons.check_circle : Icons.warning,
-                color: Colors.white,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  success
-                      ? 'All data permanently deleted! No recovery possible.'
-                      : 'Local data deleted but Firestore backups may still exist. Try again or check your internet connection.',
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: success ? Colors.red : Colors.orange,
-          duration: const Duration(seconds: 6),
-          behavior: SnackBarBehavior.floating,
-        ),
+      showAppSnack(
+        context,
+        success ? l.allDataDeleted : l.cloudDeletionPending,
+        type: success ? AppSnackType.success : AppSnackType.info,
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final palette = AppPalette.of(context);
+
+    final title = deletionCompleted
+        ? l.deletionComplete
+        : (deletionStarted ? l.deletingData : l.preparingDeletion);
+    final detail = deletionCompleted
+        ? null
+        : (deletionStarted
+            ? l.secondsElapsed(deletionTimeElapsed)
+            : l.startingIn(countdown));
+
     return Material(
       type: MaterialType.transparency,
       child: Container(
-        color: Colors.black54,
-        child: Center(
-          child: Card(
-            margin: const EdgeInsets.all(24),
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (!deletionCompleted)
-                    AnimatedBuilder(
-                      animation: _animationController,
-                      builder: (context, child) {
-                        return Transform.rotate(
-                          angle: _animationController.value * 2.0 * 3.14159,
-                          child: const Icon(
-                            Icons.delete_forever,
-                            color: Colors.red,
-                            size: 48,
-                          ),
-                        );
-                      },
-                    )
-                  else
-                    const Icon(
-                      Icons.check_circle,
-                      color: Colors.green,
-                      size: 48,
-                    ),
-                  const SizedBox(height: 20),
+        color: scheme.scrim.withValues(alpha: 0.55),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(32),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: deletionCompleted
+                      ? IconBadge(
+                          icon: Icons.check_rounded,
+                          color: palette.income,
+                          size: 64,
+                        )
+                      : CircularProgressIndicator(
+                          strokeWidth: 5,
+                          color: scheme.error,
+                        ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleMedium,
+                ),
+                if (detail != null) ...[
+                  const SizedBox(height: 6),
                   Text(
-                    deletionCompleted
-                        ? '✅ Deletion Complete!'
-                        : deletionStarted
-                            ? 'Permanently deleting all data...'
-                            : 'Preparing to delete all data...',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
+                    detail,
+                    style: textTheme.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
-                  const SizedBox(height: 8),
-                  if (!deletionCompleted && !deletionStarted)
-                    Text(
-                      'Starting in ${countdown}s',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  if (deletionStarted && !deletionCompleted)
-                    Text(
-                      'Deleting... ${deletionTimeElapsed}s elapsed',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
                 ],
-              ),
+              ],
             ),
           ),
         ),

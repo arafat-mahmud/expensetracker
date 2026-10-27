@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import '../models/deposit_model.dart';
+import '../theme/app_format.dart';
+import '../theme/app_theme.dart';
+import 'ui/app_ui.dart';
 
 class GoalCompletedDialog extends StatefulWidget {
   final DepositProfile profile;
@@ -17,34 +21,10 @@ class GoalCompletedDialog extends StatefulWidget {
 
 class _GoalCompletedDialogState extends State<GoalCompletedDialog>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _fadeAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-
-    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.elasticOut,
-      ),
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeIn,
-      ),
-    );
-
-    _controller.forward();
-  }
+  late final AnimationController _controller = AnimationController(
+    duration: const Duration(milliseconds: 600),
+    vsync: this,
+  )..forward();
 
   @override
   void dispose() {
@@ -54,137 +34,63 @@ class _GoalCompletedDialogState extends State<GoalCompletedDialog>
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final palette = AppPalette.of(context);
+
     return Dialog(
-      backgroundColor: Colors.transparent,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          return FadeTransition(
-            opacity: _fadeAnimation,
-            child: ScaleTransition(
-              scale: _scaleAnimation,
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.green.withOpacity(0.3),
-                      blurRadius: 20,
-                      spreadRadius: 5,
-                    ),
-                  ],
+      child: FadeTransition(
+        opacity: CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+        child: ScaleTransition(
+          scale: CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconBadge(
+                  icon: Icons.celebration_rounded,
+                  color: palette.income,
+                  size: 80,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Celebration icon
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.celebration,
-                        color: Colors.green,
-                        size: 50,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Title
-                    const Text(
-                      'Goal Reached!',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Congratulations
-                    Text(
-                      'Congratulations!',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Profile name
-                    Text(
-                      widget.profile.name,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Amount saved
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.savings,
-                            color: Colors.green,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${widget.balance.toStringAsFixed(0)} saved!',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Close button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Awesome!',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 20),
+                Text(
+                  l.goalReached,
+                  textAlign: TextAlign.center,
+                  style: textTheme.headlineSmall
+                      ?.copyWith(color: palette.income),
                 ),
-              ),
+                const SizedBox(height: 4),
+                Text(
+                  l.congratulations,
+                  style: textTheme.bodyLarge
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  widget.profile.name,
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleMedium,
+                ),
+                const SizedBox(height: 10),
+                StatusChip(
+                  icon: Icons.savings_rounded,
+                  color: palette.income,
+                  label: l.amountSaved(
+                      AppFormat.money(context, widget.balance, decimals: 0)),
+                ),
+                const SizedBox(height: 24),
+                SubmitButton(
+                  label: l.awesome,
+                  icon: Icons.thumb_up_alt_rounded,
+                  color: palette.income,
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

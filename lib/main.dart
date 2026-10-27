@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'services/hive_service.dart';
 import 'services/user_data_manager.dart';
@@ -19,6 +19,7 @@ import 'providers/language_provider.dart';
 import 'providers/mode_provider.dart';
 import 'providers/deposit_provider.dart';
 import 'l10n/app_localizations.dart';
+import 'theme/app_theme.dart';
 import 'screens/dashboard_page.dart';
 import 'screens/history_page.dart';
 import 'screens/settings_page.dart';
@@ -92,10 +93,7 @@ class ExpenseTrackerApp extends StatelessWidget {
             builder: (context, authProvider, child) {
               return Consumer<LanguageProvider>(
                 builder: (context, languageProvider, child) {
-                  // Select font family based on language
-                  final fontFamily = languageProvider.languageCode == 'bn'
-                      ? 'NotoSansBengali'
-                      : null;
+                  final languageCode = languageProvider.languageCode;
 
                   return Consumer<ModeProvider>(
                     builder: (context, modeProvider, child) {
@@ -113,67 +111,15 @@ class ExpenseTrackerApp extends StatelessWidget {
                           GlobalWidgetsLocalizations.delegate,
                           GlobalCupertinoLocalizations.delegate,
                         ],
-                        theme: themeProvider.lightTheme.copyWith(
-                          textTheme: fontFamily != null
-                              ? themeProvider.lightTheme.textTheme.apply(
-                                  fontFamily: fontFamily,
-                                )
-                              : themeProvider.lightTheme.textTheme.copyWith(
-                                  titleLarge: GoogleFonts.rubik80sFade(
-                                    textStyle: themeProvider
-                                        .lightTheme.textTheme.titleLarge,
-                                  ),
-                                ),
-                          appBarTheme:
-                              themeProvider.lightTheme.appBarTheme.copyWith(
-                            titleTextStyle: fontFamily != null
-                                ? TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: fontFamily,
-                                    color: themeProvider.lightTheme.appBarTheme
-                                            .titleTextStyle?.color ??
-                                        Colors.black,
-                                  )
-                                : GoogleFonts.rubik80sFade(
-                                    textStyle: themeProvider.lightTheme
-                                            .appBarTheme.titleTextStyle ??
-                                        const TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold),
-                                  ),
-                          ),
-                        ),
-                        darkTheme: themeProvider.darkTheme.copyWith(
-                          textTheme: fontFamily != null
-                              ? themeProvider.darkTheme.textTheme.apply(
-                                  fontFamily: fontFamily,
-                                )
-                              : themeProvider.darkTheme.textTheme.copyWith(
-                                  titleLarge: GoogleFonts.rubik80sFade(
-                                    textStyle: themeProvider
-                                        .darkTheme.textTheme.titleLarge,
-                                  ),
-                                ),
-                          appBarTheme:
-                              themeProvider.darkTheme.appBarTheme.copyWith(
-                            titleTextStyle: fontFamily != null
-                                ? TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: fontFamily,
-                                    color: themeProvider.darkTheme.appBarTheme
-                                            .titleTextStyle?.color ??
-                                        Colors.white,
-                                  )
-                                : GoogleFonts.rubik80sFade(
-                                    textStyle: themeProvider.darkTheme
-                                            .appBarTheme.titleTextStyle ??
-                                        const TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold),
-                                  ),
-                          ),
+                        theme: AppTheme.light(languageCode),
+                        darkTheme: AppTheme.dark(languageCode),
+                        // Status bar icons that match the theme on every
+                        // screen (app bars apply the same style)
+                        builder: (context, child) =>
+                            AnnotatedRegion<SystemUiOverlayStyle>(
+                          value: AppTheme.overlayStyle(
+                              Theme.of(context).brightness),
+                          child: child!,
                         ),
                         themeMode: themeProvider.isDarkMode
                             ? ThemeMode.dark

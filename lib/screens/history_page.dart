@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../models/expense_model.dart';
 import '../providers/expense_provider.dart';
-import '../providers/language_provider.dart';
 import '../l10n/app_localizations.dart';
+import '../theme/app_format.dart';
+import '../theme/app_theme.dart';
 import '../widgets/expense_card.dart';
+import '../widgets/ui/app_ui.dart';
 import 'add_expense_page.dart';
 import 'add_income_page.dart';
 
@@ -19,6 +20,14 @@ class HistoryPage extends StatefulWidget {
 class _HistoryPageState extends State<HistoryPage> {
   String _filterCategory = 'All';
   String _transactionType = 'All'; // 'All', 'Debit', 'Credit'
+  String _query = '';
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleRefresh() async {
     final expenseProvider =
@@ -30,133 +39,129 @@ class _HistoryPageState extends State<HistoryPage> {
     // Changes from other devices already arrive through the live listener,
     // so this only (re)starts it if it is not running. No reads otherwise.
     await expenseProvider.startCloudSync();
+  }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.refresh, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Transaction history refreshed'),
-            ],
-          ),
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+  List<Expense> _filtered(ExpenseProvider provider, AppLocalizations l) {
+    Iterable<Expense> expenses = provider.expenses;
+    if (_transactionType == 'Debit') {
+      expenses = expenses.where((e) => e.isDebit);
+    } else if (_transactionType == 'Credit') {
+      expenses = expenses.where((e) => e.isCredit);
     }
+    if (_filterCategory != 'All') {
+      expenses = expenses.where((e) => e.category == _filterCategory);
+    }
+    final query = _query.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      expenses = expenses.where((e) =>
+          e.title.toLowerCase().contains(query) ||
+          e.note.toLowerCase().contains(query) ||
+          e.category.toLowerCase().contains(query) ||
+          l.getCategoryName(e.category).toLowerCase().contains(query));
+    }
+    return expenses.toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final expenseProvider = Provider.of<ExpenseProvider>(context);
-    final languageProvider = Provider.of<LanguageProvider>(context);
-    final localizations = AppLocalizations.of(context);
+    final l = AppLocalizations.of(context);
+    final expenses = _filtered(expenseProvider, l);
 
-    List<Expense> expenses = expenseProvider.expenses;
-
-    // Apply transaction type filter
-    if (_transactionType == 'Debit') {
-      expenses = expenses.where((e) => e.isDebit).toList();
-    } else if (_transactionType == 'Credit') {
-      expenses = expenses.where((e) => e.isCredit).toList();
+    // Group by day; the provider already sorts newest first
+    final groups = <DateTime, List<Expense>>{};
+    for (final expense in expenses) {
+      final day =
+          DateTime(expense.date.year, expense.date.month, expense.date.day);
+      groups.putIfAbsent(day, () => []).add(expense);
     }
 
-    // Apply category filter
-    if (_filterCategory != 'All') {
-      expenses = expenses.where((e) => e.category == _filterCategory).toList();
-    }
+    final categories = [
+      if (_transactionType != 'Credit') ...ExpenseCategory.all,
+      if (_transactionType != 'Debit') ...IncomeCategory.all,
+    ];
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          localizations.history,
-          style: languageProvider.languageCode == 'bn'
-              ? const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                )
-              : GoogleFonts.rubik80sFade(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                ),
-        ),
+        title: Text(l.history),
         actions: [
           IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: () {
-              Navigator.pushNamed(context, '/statement');
-            },
-            tooltip: localizations.downloadStatement,
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: l.downloadStatement,
+            onPressed: () => Navigator.pushNamed(context, '/statement'),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(
         children: [
-          const SizedBox(height: 16),
-
-          // Transaction Type Filter
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _query = value),
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: l.searchTransactions,
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () {
+                          FocusScope.of(context).unfocus();
+                          _searchController.clear();
+                          setState(() => _query = '');
+                        },
+                      ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<String>(
+                showSelectedIcon: false,
+                segments: [
+                  ButtonSegment(value: 'All', label: Text(l.all)),
+                  ButtonSegment(value: 'Debit', label: Text(l.expenses)),
+                  ButtonSegment(value: 'Credit', label: Text(l.income)),
+                ],
+                selected: {_transactionType},
+                onSelectionChanged: (selection) => setState(() {
+                  _transactionType = selection.first;
+                  _filterCategory = 'All';
+                }),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               children: [
-                Expanded(
-                  child: SegmentedButton<String>(
-                    segments: [
-                      ButtonSegment(
-                        value: 'All',
-                        label: Text(localizations.all),
-                        icon: const Icon(Icons.list),
-                      ),
-                      ButtonSegment(
-                        value: 'Debit',
-                        label: Text(localizations.expenses),
-                        icon: const Icon(Icons.remove_circle),
-                      ),
-                      ButtonSegment(
-                        value: 'Credit',
-                        label: Text(localizations.income),
-                        icon: const Icon(Icons.add_circle),
-                      ),
-                    ],
-                    selected: {_transactionType},
-                    onSelectionChanged: (Set<String> newSelection) {
-                      setState(() {
-                        _transactionType = newSelection.first;
-                        _filterCategory = 'All'; // Reset category filter
-                      });
-                    },
-                  ),
+                _CategoryChip(
+                  label: l.all,
+                  selected: _filterCategory == 'All',
+                  onSelected: () => setState(() => _filterCategory = 'All'),
                 ),
+                for (final category in categories)
+                  _CategoryChip(
+                    emoji: ExpenseCategory.all.contains(category)
+                        ? ExpenseCategory.getIcon(category)
+                        : IncomeCategory.getIcon(category),
+                    label: l.getCategoryName(category),
+                    selected: _filterCategory == category,
+                    onSelected: () =>
+                        setState(() => _filterCategory = category),
+                  ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-
-          // Category Filter
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                _buildFilterChip('All'),
-                // Show appropriate categories based on transaction type
-                if (_transactionType == 'Debit' || _transactionType == 'All')
-                  ...ExpenseCategory.all
-                      .map((category) => _buildFilterChip(category)),
-                if (_transactionType == 'Credit' || _transactionType == 'All')
-                  ...IncomeCategory.all
-                      .map((category) => _buildFilterChip(category)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Transaction List
+          const SizedBox(height: 8),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _handleRefresh,
@@ -164,175 +169,129 @@ class _HistoryPageState extends State<HistoryPage> {
                   ? ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                        SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.5,
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.receipt_long,
-                                  size: 80,
-                                  color: Colors.grey.shade400,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  localizations.noExpensesFound,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
-                                        color: Colors.grey,
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
+                        EmptyState(
+                          icon: Icons.receipt_long_rounded,
+                          title: l.noExpensesFound,
                         ),
                       ],
                     )
-                  : ListView.builder(
+                  : ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: expenses.length,
-                      itemBuilder: (context, index) {
-                        final expense = expenses[index];
-                        return ExpenseCard(
-                          expense: expense,
-                          onEdit: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => expense.isDebit
-                                    ? AddExpensePage(expense: expense)
-                                    : AddIncomePage(income: expense),
-                              ),
-                            );
-                          },
-                          onDelete: () {
-                            _showDeleteDialog(
-                                context, expense, expenseProvider);
-                          },
-                        );
-                      },
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                      children: [
+                        for (final entry in groups.entries) ...[
+                          _DayHeader(day: entry.key, items: entry.value),
+                          Card(
+                            child: Column(
+                              children: [
+                                for (var i = 0; i < entry.value.length; i++) ...[
+                                  if (i > 0) const Divider(indent: 72),
+                                  ExpenseCard(
+                                    expense: entry.value[i],
+                                    showDate: false,
+                                    onEdit: () => _edit(entry.value[i]),
+                                    onDelete: () => confirmAndDeleteExpense(
+                                        context,
+                                        entry.value[i],
+                                        expenseProvider.deleteExpense),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      ],
                     ),
             ),
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomNavBar(context),
+      bottomNavigationBar: const AppNavigationBar(currentIndex: 1),
     );
   }
 
-  Widget _buildFilterChip(String category) {
-    final localizations = AppLocalizations.of(context);
-    final isSelected = _filterCategory == category;
-    String icon = '';
-
-    if (category != 'All') {
-      // Check if it's an expense category or income category
-      if (ExpenseCategory.all.contains(category)) {
-        icon = ExpenseCategory.getIcon(category);
-      } else if (IncomeCategory.all.contains(category)) {
-        icon = IncomeCategory.getIcon(category);
-      }
-    }
-
-    // Translate 'All' if needed
-    final displayText = category == 'All' ? localizations.all : category;
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(displayText),
-        selected: isSelected,
-        onSelected: (selected) {
-          setState(() {
-            _filterCategory = category;
-          });
-        },
-        avatar: icon.isNotEmpty ? Text(icon) : null,
+  void _edit(Expense expense) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => expense.isDebit
+            ? AddExpensePage(expense: expense)
+            : AddIncomePage(income: expense),
       ),
     );
   }
+}
 
-  void _showDeleteDialog(
-    BuildContext context,
-    Expense expense,
-    ExpenseProvider provider,
-  ) {
-    final itemType = expense.isDebit ? 'expense' : 'income';
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title:
-            Text('Delete ${itemType[0].toUpperCase()}${itemType.substring(1)}'),
-        content: Text('Are you sure you want to delete "${expense.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+    this.emoji,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+  final String? emoji;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        selected: selected,
+        onSelected: (_) => onSelected(),
+        avatar: emoji == null ? null : Text(emoji!),
+        label: Text(label),
+      ),
+    );
+  }
+}
+
+/// "Today" / "Yesterday" / date, with the day's net total
+class _DayHeader extends StatelessWidget {
+  const _DayHeader({required this.day, required this.items});
+
+  final DateTime day;
+  final List<Expense> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final palette = AppPalette.of(context);
+
+    final now = DateTime.now();
+    final label = AppFormat.isSameDay(day, now)
+        ? l.today
+        : AppFormat.isSameDay(day, now.subtract(const Duration(days: 1)))
+            ? l.yesterday
+            : AppFormat.longDate(context, day);
+    final net = items.fold(
+        0.0, (sum, e) => sum + (e.isCredit ? e.amount : -e.amount));
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: textTheme.labelLarge
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
           ),
-          TextButton(
-            onPressed: () {
-              // Close dialog immediately
-              Navigator.pop(context);
-
-              // Delete expense - instant UI update
-              provider.deleteExpense(expense.id);
-
-              // Show feedback
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      const Icon(Icons.check_circle, color: Colors.white),
-                      const SizedBox(width: 8),
-                      Text(
-                          '${itemType[0].toUpperCase()}${itemType.substring(1)} deleted'),
-                    ],
-                  ),
-                  backgroundColor: Colors.red,
-                  duration: const Duration(seconds: 2),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.red),
+          Text(
+            AppFormat.money(context, net, signed: true),
+            style: textTheme.labelLarge?.copyWith(
+              color: net >= 0 ? palette.income : scheme.onSurfaceVariant,
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildBottomNavBar(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-
-    return BottomNavigationBar(
-      currentIndex: 1,
-      onTap: (index) {
-        if (index == 0) {
-          Navigator.pushReplacementNamed(context, '/');
-        } else if (index == 2) {
-          Navigator.pushReplacementNamed(context, '/settings');
-        }
-      },
-      items: [
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.dashboard),
-          label: localizations.dashboard,
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.history),
-          label: localizations.history,
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.settings),
-          label: localizations.settings,
-        ),
-      ],
     );
   }
 }

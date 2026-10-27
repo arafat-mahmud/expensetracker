@@ -1,107 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../models/expense_model.dart';
 import '../l10n/app_localizations.dart';
+import '../models/expense_model.dart';
+import '../theme/app_format.dart';
 
+/// Donut chart of spending per category, with the total in the middle
 class CategoryPieChart extends StatelessWidget {
   final Map<String, double> categoryExpense;
+  final double size;
 
   const CategoryPieChart({
     super.key,
     required this.categoryExpense,
+    this.size = 180,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (categoryExpense.isEmpty) {
-      return const Center(
-        child: Text('No expense data available'),
-      );
-    }
-
-    final total = categoryExpense.values.fold(0.0, (sum, value) => sum + value);
-    final categoryCount = categoryExpense.length;
-
-    // Calculate dynamic height based on number of categories
-    // Base: 180 for chart, 8 for spacing, then estimate legend height
-    // Each legend item is roughly 22px height, arrange in rows
-    final itemsPerRow = 3;
-    final legendRows = (categoryCount / itemsPerRow).ceil();
-    final legendHeight = (legendRows * 22.0) +
-        ((legendRows - 1) * 6.0); // 22px per row + 6px runSpacing
-    final totalHeight = 180 + 8 + legendHeight;
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final total = categoryExpense.values.fold(0.0, (sum, v) => sum + v);
+    final entries = categoryExpense.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
 
     return SizedBox(
-      height: totalHeight,
-      child: Column(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          // Donut Chart
-          SizedBox(
-            height: 180,
-            child: PieChart(
-              PieChartData(
-                sections: categoryExpense.entries.map((entry) {
-                  final color = Color(
-                    ExpenseCategory.getCategoryColor(entry.key)['color']!,
-                  );
-                  final percentage = (entry.value / total * 100);
-
-                  return PieChartSectionData(
-                    color: color,
+          PieChart(
+            PieChartData(
+              sectionsSpace: 2,
+              centerSpaceRadius: size * 0.33,
+              startDegreeOffset: -90,
+              pieTouchData: PieTouchData(enabled: false),
+              sections: [
+                for (final entry in entries)
+                  PieChartSectionData(
+                    color: Color(
+                        ExpenseCategory.getCategoryColor(entry.key)['color']!),
                     value: entry.value,
-                    title: '${percentage.toStringAsFixed(0)}%',
-                    radius: 50,
-                    titleStyle: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    badgeWidget: null,
-                  );
-                }).toList(),
-                sectionsSpace: 2,
-                centerSpaceRadius: 45,
-                pieTouchData: PieTouchData(
-                  touchCallback: (FlTouchEvent event, pieTouchResponse) {},
-                ),
-              ),
+                    radius: size * 0.14,
+                    showTitle: false,
+                  ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          // Legend
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 8,
-            runSpacing: 6,
-            children: categoryExpense.entries.map((entry) {
-              final color = Color(
-                ExpenseCategory.getCategoryColor(entry.key)['color']!,
-              );
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      AppLocalizations.of(context)!.getCategoryName(entry.key),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 11,
-                          ),
-                    ),
-                  ],
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                AppLocalizations.of(context).total,
+                style: textTheme.labelMedium
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 2),
+              SizedBox(
+                width: size * 0.56,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    AppFormat.money(context, total, decimals: 0),
+                    style: textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
                 ),
-              );
-            }).toList(),
+              ),
+            ],
           ),
         ],
       ),

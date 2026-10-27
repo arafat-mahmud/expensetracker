@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import '../theme/app_format.dart';
+import '../theme/app_theme.dart';
 
 class DepositProgressChart extends StatelessWidget {
   final double progress; // 0.0 to 1.0
@@ -21,21 +23,13 @@ class DepositProgressChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determine color based on status
-    Color progressColor;
-    if (isCompleted) {
-      progressColor = Colors.green;
-    } else if (isOverdue) {
-      progressColor = Colors.red;
-    } else if (!isOnTrack) {
-      progressColor = Colors.orange;
-    } else {
-      progressColor = Colors.blue;
-    }
-
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor =
-        isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200;
+    final scheme = Theme.of(context).colorScheme;
+    final palette = AppPalette.of(context);
+    final color = isCompleted
+        ? palette.income
+        : isOverdue
+            ? palette.expense
+            : (isOnTrack ? scheme.primary : palette.warning);
 
     return SizedBox(
       width: size,
@@ -43,52 +37,32 @@ class DepositProgressChart extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Background circle
           CustomPaint(
             size: Size(size, size),
             painter: _CircleProgressPainter(
               progress: 1.0,
-              color: backgroundColor,
+              color: scheme.surfaceContainerHighest,
               strokeWidth: strokeWidth,
             ),
           ),
-          // Progress arc
           CustomPaint(
             size: Size(size, size),
             painter: _CircleProgressPainter(
               progress: progress.clamp(0.0, 1.0),
-              color: progressColor,
+              color: color,
               strokeWidth: strokeWidth,
             ),
           ),
-          // Center content
           if (isCompleted)
-            Container(
-              width: size * 0.5,
-              height: size * 0.5,
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.check,
-                color: Colors.green,
-                size: size * 0.3,
-              ),
-            )
+            Icon(Icons.check_rounded, color: color, size: size * 0.4)
           else
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '${(progress * 100).toInt()}%',
-                  style: TextStyle(
-                    fontSize: size * 0.2,
-                    fontWeight: FontWeight.bold,
-                    color: progressColor,
-                  ),
-                ),
-              ],
+            Text(
+              '${AppFormat.number(context, (progress * 100).round())}%',
+              style: TextStyle(
+                fontSize: size * 0.2,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
             ),
         ],
       ),
@@ -111,19 +85,16 @@ class _CircleProgressPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width - strokeWidth) / 2;
-
     final paint = Paint()
       ..color = color
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    final sweepAngle = 2 * math.pi * progress;
-
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
       -math.pi / 2, // Start from top
-      sweepAngle,
+      2 * math.pi * progress,
       false,
       paint,
     );

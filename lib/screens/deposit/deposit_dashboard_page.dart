@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../models/deposit_model.dart';
 import '../../providers/deposit_provider.dart';
-import '../../providers/language_provider.dart';
 import '../../l10n/app_localizations.dart';
+import '../../theme/app_format.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/deposit_profile_card.dart';
 import '../../widgets/goal_completed_dialog.dart';
+import '../../widgets/ui/app_ui.dart';
 import '../../services/deposit_pdf_service.dart';
 import 'add_deposit_profile_page.dart';
 import 'deposit_profile_detail_page.dart';
@@ -45,515 +47,191 @@ class _DepositDashboardPageState extends State<DepositDashboardPage> {
     await depositProvider.startCloudSync();
   }
 
-  Future<void> _downloadPdf() async {
+  /// Runs a PDF action behind a progress dialog and reports the outcome
+  Future<void> _runPdfAction(Future<void> Function(DepositProvider) action,
+      {String? successMessage}) async {
     final depositProvider =
         Provider.of<DepositProvider>(context, listen: false);
-
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
     try {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-
-      // Generate PDF
-      await DepositPdfService.generateAndDownloadPdf(
-        profiles: depositProvider.profiles,
-        transactions: depositProvider.transactions,
-        totalBalance: depositProvider.totalBalance,
-        totalDeposited: depositProvider.totalDeposited,
-        totalWithdrawn: depositProvider.totalWithdrawn,
-      );
-
-      // Close loading indicator
-      if (mounted) Navigator.pop(context);
-
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('PDF downloaded successfully!'),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      await action(depositProvider);
+      if (!mounted) return;
+      Navigator.pop(context);
+      if (successMessage != null) showAppSnack(context, successMessage);
     } catch (e) {
-      // Close loading indicator
-      if (mounted) Navigator.pop(context);
-
-      // Show error message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
-                Text('Error: ${e.toString()}'),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      if (!mounted) return;
+      Navigator.pop(context);
+      showAppSnack(context, '${AppLocalizations.of(context).error}: $e',
+          type: AppSnackType.error);
     }
   }
 
-  Future<void> _sharePdf() async {
-    final depositProvider =
-        Provider.of<DepositProvider>(context, listen: false);
+  Future<void> _downloadPdf() => _runPdfAction(
+        (provider) => DepositPdfService.generateAndDownloadPdf(
+          profiles: provider.profiles,
+          transactions: provider.transactions,
+          totalBalance: provider.totalBalance,
+          totalDeposited: provider.totalDeposited,
+          totalWithdrawn: provider.totalWithdrawn,
+        ),
+        successMessage: AppLocalizations.of(context).fileSaved,
+      );
 
-    try {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
+  Future<void> _sharePdf() => _runPdfAction(
+        (provider) => DepositPdfService.sharePdf(
+          profiles: provider.profiles,
+          transactions: provider.transactions,
+          totalBalance: provider.totalBalance,
+          totalDeposited: provider.totalDeposited,
+          totalWithdrawn: provider.totalWithdrawn,
         ),
       );
 
-      // Generate and share PDF
-      await DepositPdfService.sharePdf(
-        profiles: depositProvider.profiles,
-        transactions: depositProvider.transactions,
-        totalBalance: depositProvider.totalBalance,
-        totalDeposited: depositProvider.totalDeposited,
-        totalWithdrawn: depositProvider.totalWithdrawn,
-      );
+  void _openProfile(DepositProfile profile) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DepositProfileDetailPage(profile: profile),
+      ),
+    );
+  }
 
-      // Close loading indicator
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      // Close loading indicator
-      if (mounted) Navigator.pop(context);
-
-      // Show error message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error, color: Colors.white),
-                const SizedBox(width: 8),
-                Text('Error: ${e.toString()}'),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
+  void _createProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddDepositProfilePage()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final depositProvider = Provider.of<DepositProvider>(context);
-    final languageProvider = Provider.of<LanguageProvider>(context);
-    final localizations = AppLocalizations.of(context);
+    final l = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final palette = AppPalette.of(context);
     final profiles = depositProvider.profiles;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          localizations.depositProfiles,
-          style: languageProvider.languageCode == 'bn'
-              ? const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                )
-              : GoogleFonts.rubik80sFade(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                ),
-        ),
+        title: Text(l.depositProfiles),
         actions: [
-          // PDF Download Menu
           if (profiles.isNotEmpty)
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              onSelected: (value) {
-                if (value == 'download') {
-                  _downloadPdf();
-                } else if (value == 'share') {
-                  _sharePdf();
-                }
-              },
+              icon: const Icon(Icons.more_vert_rounded),
+              onSelected: (value) =>
+                  value == 'download' ? _downloadPdf() : _sharePdf(),
               itemBuilder: (context) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'download',
                   child: Row(
                     children: [
-                      Icon(Icons.download, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Text('Download PDF'),
+                      Icon(Icons.file_download_outlined,
+                          color: scheme.primary),
+                      const SizedBox(width: 12),
+                      Text(l.downloadPdf),
                     ],
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'share',
                   child: Row(
                     children: [
-                      Icon(Icons.share, color: Colors.green),
-                      SizedBox(width: 8),
-                      Text('Share PDF'),
+                      Icon(Icons.ios_share_rounded, color: palette.income),
+                      const SizedBox(width: 12),
+                      Text(l.sharePdf),
                     ],
                   ),
                 ),
               ],
             ),
+          const SizedBox(width: 8),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _handleRefresh,
         child: profiles.isEmpty
-            ? _buildEmptyState(context, localizations)
-            : _buildProfileGrid(context, profiles, depositProvider),
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  const SizedBox(height: 40),
+                  EmptyState(
+                    icon: Icons.savings_rounded,
+                    title: l.noProfiles,
+                    message: l.createFirstProfile,
+                    action: FilledButton.icon(
+                      onPressed: _createProfile,
+                      icon: const Icon(Icons.add_rounded),
+                      label: Text(l.createProfile),
+                    ),
+                  ),
+                ],
+              )
+            : ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
+                children: [
+                  HeroSummaryCard(
+                    label: l.totalSavings,
+                    amount: AppFormat.money(context, depositProvider.totalBalance),
+                    badge: HeroBadge(
+                      icon: Icons.flag_rounded,
+                      label:
+                          '${AppFormat.number(context, depositProvider.activeProfiles.length)} ${l.activeGoals}',
+                    ),
+                    stats: [
+                      HeroStat(
+                        icon: Icons.south_west_rounded,
+                        label: l.saved,
+                        value: AppFormat.money(
+                            context, depositProvider.totalDeposited,
+                            decimals: 0),
+                        accent: palette.income,
+                      ),
+                      HeroStat(
+                        icon: Icons.north_east_rounded,
+                        label: l.withdrawn,
+                        value: AppFormat.money(
+                            context, depositProvider.totalWithdrawn,
+                            decimals: 0),
+                        accent: palette.expense,
+                      ),
+                    ],
+                  ),
+                  if (depositProvider.activeProfiles.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    SectionHeader(l.activeGoals),
+                    for (final profile in depositProvider.activeProfiles) ...[
+                      DepositProfileCard(
+                        profile: profile,
+                        onTap: () => _openProfile(profile),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ],
+                  if (depositProvider.completedProfiles.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    SectionHeader(l.completedGoals),
+                    for (final profile in depositProvider.completedProfiles) ...[
+                      DepositProfileCard(
+                        profile: profile,
+                        onTap: () => _openProfile(profile),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ],
+                ],
+              ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddDepositProfilePage(),
-            ),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: Text(localizations.createProfile),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+        onPressed: _createProfile,
+        icon: const Icon(Icons.add_rounded),
+        label: Text(l.createProfile),
       ),
-      bottomNavigationBar: _buildBottomNavBar(context, localizations),
-    );
-  }
-
-  Widget _buildEmptyState(
-      BuildContext context, AppLocalizations localizations) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Center(
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.savings_outlined,
-                size: 100,
-                color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                localizations.noProfiles,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                localizations.createFirstProfile,
-                style: TextStyle(
-                  color:
-                      isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddDepositProfilePage(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.add),
-                label: Text(localizations.createProfile),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileGrid(
-      BuildContext context, List profiles, DepositProvider depositProvider) {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Summary Card
-          _buildSummaryCard(context, depositProvider),
-          const SizedBox(height: 20),
-
-          // Active Profiles Section
-          if (depositProvider.activeProfiles.isNotEmpty) ...[
-            Text(
-              'Active Goals',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.85,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: depositProvider.activeProfiles.length,
-              itemBuilder: (context, index) {
-                final profile = depositProvider.activeProfiles[index];
-                return DepositProfileCard(
-                  profile: profile,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            DepositProfileDetailPage(profile: profile),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ],
-
-          // Completed Profiles Section
-          if (depositProvider.completedProfiles.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            Text(
-              'Completed Goals',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.85,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: depositProvider.completedProfiles.length,
-              itemBuilder: (context, index) {
-                final profile = depositProvider.completedProfiles[index];
-                return DepositProfileCard(
-                  profile: profile,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            DepositProfileDetailPage(profile: profile),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ],
-          const SizedBox(height: 80), // Space for FAB
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard(
-      BuildContext context, DepositProvider depositProvider) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blue.shade400, Colors.blue.shade600],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Text(
-              'Total Savings',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${depositProvider.totalBalance.toStringAsFixed(2)}',
-              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.arrow_downward,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Saved',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: Colors.white),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${depositProvider.totalDeposited.toStringAsFixed(0)}',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.arrow_upward,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Withdrawn',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: Colors.white),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${depositProvider.totalWithdrawn.toStringAsFixed(0)}',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomNavBar(
-      BuildContext context, AppLocalizations localizations) {
-    return BottomNavigationBar(
-      currentIndex: 0,
-      onTap: (index) {
-        if (index == 1) {
-          Navigator.pushReplacementNamed(context, '/deposit-history');
-        } else if (index == 2) {
-          Navigator.pushReplacementNamed(context, '/settings');
-        }
-      },
-      items: [
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.savings),
-          label: localizations.dashboard,
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.history),
-          label: localizations.history,
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.settings),
-          label: localizations.settings,
-        ),
-      ],
+      bottomNavigationBar: const AppNavigationBar(currentIndex: 0),
     );
   }
 }

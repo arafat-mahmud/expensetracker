@@ -1,15 +1,17 @@
-import 'package:expensetracker/utils/background_restore_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../utils/background_restore_handler.dart';
 import '../providers/expense_provider.dart';
 import '../providers/budget_provider.dart';
 import '../providers/auth_provider.dart';
-import '../providers/language_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../models/expense_model.dart';
+import '../theme/app_format.dart';
+import '../theme/app_theme.dart';
 import '../widgets/category_pie_chart.dart';
 import '../widgets/daily_bar_chart.dart';
+import '../widgets/expense_card.dart';
+import '../widgets/ui/app_ui.dart';
 import 'add_expense_page.dart';
 import 'add_income_page.dart';
 import 'category_report_page.dart';
@@ -109,19 +111,8 @@ class _DashboardPageState extends State<DashboardPage> {
     budgetProvider.reloadBudget();
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.refresh, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Data refreshed'),
-            ],
-          ),
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      showAppSnack(context, AppLocalizations.of(context).refresh,
+          type: AppSnackType.info);
     }
   }
 
@@ -129,185 +120,204 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     final expenseProvider = Provider.of<ExpenseProvider>(context);
     final budgetProvider = Provider.of<BudgetProvider>(context);
-    final languageProvider = Provider.of<LanguageProvider>(context);
-    final localizations = AppLocalizations.of(context);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final l = AppLocalizations.of(context);
+    final palette = AppPalette.of(context);
 
     final totalExpense = expenseProvider.getTotalExpenseForMonth(selectedMonth);
     final totalIncome = expenseProvider.getTotalIncomeForMonth(selectedMonth);
     final monthBalance = expenseProvider.getBalanceForMonth(selectedMonth);
     final categoryExpense =
         expenseProvider.getCategoryExpenseForMonth(selectedMonth);
-    final dailyExpense = expenseProvider.getDailyExpenseForMonth(selectedMonth);
+    final lastSevenDays = expenseProvider.getDailyExpenseForLastNDays(7);
+    final recent = expenseProvider.expenses.take(5).toList();
 
-    final budgetUsed = budgetProvider.getBudgetUsedPercentage(totalExpense);
-    final remainingBudget = budgetProvider.getRemainingBudget(totalExpense);
-    final isOverBudget = budgetProvider.isOverBudget(totalExpense);
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? l.goodMorning
+        : (hour < 17 ? l.goodAfternoon : l.goodEvening);
+    final firstName =
+        authProvider.getUserDisplayName()?.trim().split(' ').first ?? '';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          localizations.appName,
-          style: languageProvider.languageCode == 'bn'
-              ? const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                )
-              : GoogleFonts.rubik80sFade(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                ),
+        toolbarHeight: 72,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              greeting,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            Text(firstName.isEmpty ? l.appName : firstName),
+          ],
         ),
         actions: [
-          // Show subtle loading indicator during background restore
           if (_isRestoringInBackground)
-            Container(
-              margin: const EdgeInsets.only(right: 8),
-              child: const Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                  ),
-                ),
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
-          IconButton(
-            icon: const Icon(Icons.event_note_rounded),
-            onPressed: () {
-              _showMonthPicker(context);
-            },
-            tooltip: localizations.selectMonth,
+          _MonthChip(
+            label: AppFormat.monthYear(context, selectedMonth),
+            onTap: () => _showMonthPicker(context),
           ),
+          const SizedBox(width: 8),
+          _Avatar(
+            photoUrl: authProvider.getUserPhotoURL(),
+            onTap: () => Navigator.pushReplacementNamed(context, '/settings'),
+          ),
+          const SizedBox(width: 16),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _handleRefresh,
-        child: SingleChildScrollView(
+        child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Balance Summary Card
-              _buildBalanceCard(context, totalIncome, totalExpense,
-                  monthBalance, localizations),
-              const SizedBox(height: 20),
-
-              // Quick Action Buttons
-              _buildQuickActionButtons(context, localizations),
-              const SizedBox(height: 20),
-
-              // Budget Progress Card
-              _buildBudgetCard(
-                context,
-                totalExpense,
-                budgetProvider.monthlyBudget,
-                budgetUsed,
-                remainingBudget,
-                isOverBudget,
-                localizations,
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          children: [
+            HeroSummaryCard(
+              label: l.monthBalance,
+              amount: AppFormat.money(context, monthBalance),
+              badge: HeroBadge(
+                icon: monthBalance >= 0
+                    ? Icons.trending_up_rounded
+                    : Icons.trending_down_rounded,
+                label: monthBalance >= 0 ? l.surplus : l.deficit,
               ),
-              const SizedBox(height: 20),
-
-              // Category Expense Summary
-              Text(
-                localizations.categoryExpenses,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 16),
-              _buildCategoryCards(context, categoryExpense, expenseProvider),
-              const SizedBox(height: 20),
-
-              // Pie Chart
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        localizations.expensesByCategory,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                      ),
-                      const SizedBox(height: 16),
-                      categoryExpense.isEmpty
-                          ? SizedBox(
-                              height: 200,
-                              child: Center(
-                                  child:
-                                      Text(localizations.noExpensesThisMonth)))
-                          : CategoryPieChart(categoryExpense: categoryExpense),
-                    ],
-                  ),
+              stats: [
+                HeroStat(
+                  icon: Icons.south_west_rounded,
+                  label: l.income,
+                  value: AppFormat.money(context, totalIncome),
+                  accent: palette.income,
                 ),
-              ),
-              const SizedBox(height: 20),
-
-              // Daily Trend Bar Chart
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            localizations.dailyExpenseTrend,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const DailyExpenseTrendPage(),
-                                ),
-                              );
-                            },
-                            child: Text(localizations.view),
+                HeroStat(
+                  icon: Icons.north_east_rounded,
+                  label: l.expense,
+                  value: AppFormat.money(context, totalExpense),
+                  accent: palette.expense,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _QuickActions(
+              actions: [
+                _QuickAction(
+                  icon: Icons.add_rounded,
+                  label: l.addIncome,
+                  color: palette.income,
+                  onTap: () => _open(const AddIncomePage()),
+                ),
+                _QuickAction(
+                  icon: Icons.remove_rounded,
+                  label: l.addExpense,
+                  color: palette.expense,
+                  onTap: () => _open(const AddExpensePage()),
+                ),
+                _QuickAction(
+                  icon: Icons.description_outlined,
+                  label: l.statement,
+                  color: Theme.of(context).colorScheme.primary,
+                  onTap: () => Navigator.pushNamed(context, '/statement'),
+                ),
+                _QuickAction(
+                  icon: Icons.insights_rounded,
+                  label: l.dailyTrends,
+                  color: palette.violet,
+                  onTap: () => _open(const DailyExpenseTrendPage()),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            SectionHeader(l.monthlyBudget),
+            _BudgetCard(
+              spent: totalExpense,
+              budget: budgetProvider.monthlyBudget,
+            ),
+            const SizedBox(height: 24),
+            SectionHeader(l.expensesByCategory),
+            categoryExpense.isEmpty
+                ? Card(
+                    child: EmptyState(
+                      compact: true,
+                      icon: Icons.donut_large_rounded,
+                      title: l.noExpensesThisMonth,
+                    ),
+                  )
+                : _CategoryBreakdown(
+                    categoryExpense: categoryExpense,
+                    onCategoryTap: (category) =>
+                        _open(CategoryReportPage(category: category)),
+                  ),
+            const SizedBox(height: 24),
+            SectionHeader(
+              l.dailyExpenseTrend,
+              actionLabel: l.view,
+              onAction: () => _open(const DailyExpenseTrendPage()),
+            ),
+            Card(
+              child: lastSevenDays.values.every((v) => v == 0)
+                  ? EmptyState(
+                      compact: true,
+                      icon: Icons.bar_chart_rounded,
+                      title: l.noExpensesLast7Days,
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 20, 16, 8),
+                      child: SizedBox(
+                        height: 190,
+                        child: DailyBarChart(
+                          dailyExpense: lastSevenDays,
+                          days: 7,
+                        ),
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 24),
+            SectionHeader(
+              l.recentTransactions,
+              actionLabel: recent.isEmpty ? null : l.seeAll,
+              onAction: () => Navigator.pushReplacementNamed(context, '/history'),
+            ),
+            Card(
+              child: recent.isEmpty
+                  ? EmptyState(
+                      compact: true,
+                      icon: Icons.receipt_long_rounded,
+                      title: l.noTransactions,
+                    )
+                  : Column(
+                      children: [
+                        for (var i = 0; i < recent.length; i++) ...[
+                          if (i > 0) const Divider(indent: 72),
+                          ExpenseCard(
+                            expense: recent[i],
+                            onEdit: () => _open(recent[i].isDebit
+                                ? AddExpensePage(expense: recent[i])
+                                : AddIncomePage(income: recent[i])),
+                            onDelete: () => confirmAndDeleteExpense(
+                                context, recent[i], expenseProvider.deleteExpense),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        height: 200,
-                        child: dailyExpense.isEmpty
-                            ? Center(
-                                child: Text(localizations.noExpensesLast7Days))
-                            : DailyBarChart(
-                                dailyExpense: expenseProvider
-                                    .getDailyExpenseForLastNDays(7),
-                                days: 7,
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+                      ],
+                    ),
+            ),
+          ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNavBar(context),
+      bottomNavigationBar: const AppNavigationBar(currentIndex: 0),
     );
+  }
+
+  void _open(Widget page) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
   Future<void> _showMonthPicker(BuildContext context) async {
@@ -316,8 +326,8 @@ class _DashboardPageState extends State<DashboardPage> {
       initialDate: selectedMonth,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      helpText: 'Select Month',
-      initialDatePickerMode: DatePickerMode.day,
+      helpText: AppLocalizations.of(context).selectMonth,
+      initialDatePickerMode: DatePickerMode.year,
     );
 
     if (picked != null && picked != selectedMonth) {
@@ -326,403 +336,309 @@ class _DashboardPageState extends State<DashboardPage> {
       });
     }
   }
+}
 
-  Widget _buildQuickActionButtons(
-      BuildContext context, AppLocalizations localizations) {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AddIncomePage()),
-              );
-            },
-            icon: const Icon(Icons.add_circle_outline, size: 24),
-            label: Text(
-              localizations.addIncome,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 3,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AddExpensePage()),
-              );
-            },
-            icon: const Icon(Icons.remove_circle_outline, size: 24),
-            label: Text(
-              localizations.addExpense,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 3,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+class _MonthChip extends StatelessWidget {
+  const _MonthChip({required this.label, required this.onTap});
 
-  Widget _buildBalanceCard(
-    BuildContext context,
-    double totalIncome,
-    double totalExpense,
-    double balance,
-    AppLocalizations localizations,
-  ) {
-    final isPositive = balance >= 0;
-    return Card(
-      elevation: 4,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isPositive
-                ? [Colors.green.shade400, Colors.green.shade600]
-                : [Colors.red.shade400, Colors.red.shade600],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surface,
+      shape: StadiumBorder(side: BorderSide(color: scheme.outlineVariant)),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.calendar_month_rounded,
+                  size: 16, color: scheme.primary),
+              const SizedBox(width: 6),
+              Text(label, style: Theme.of(context).textTheme.labelLarge),
+            ],
           ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Text(
-              localizations.totalBalance,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${balance.toStringAsFixed(2)}',
-              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.arrow_downward,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              localizations.income,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: Colors.white,
-                                  ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${totalIncome.toStringAsFixed(2)}',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.arrow_upward,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              localizations.expense,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: Colors.white,
-                                  ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${totalExpense.toStringAsFixed(2)}',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildBudgetCard(
-    BuildContext context,
-    double totalExpense,
-    double monthlyBudget,
-    double budgetUsed,
-    double remainingBudget,
-    bool isOverBudget,
-    AppLocalizations localizations,
-  ) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.photoUrl, required this.onTap});
 
+  final String? photoUrl;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: CircleAvatar(
+        radius: 19,
+        backgroundColor: scheme.primaryContainer,
+        foregroundImage: photoUrl == null ? null : NetworkImage(photoUrl!),
+        child: Icon(Icons.person_rounded,
+            size: 20, color: scheme.onPrimaryContainer),
+      ),
+    );
+  }
+}
+
+class _QuickAction {
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+}
+
+class _QuickActions extends StatelessWidget {
+  const _QuickActions({required this.actions});
+
+  final List<_QuickAction> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Card(
-      color: isOverBudget
-          ? (isDarkMode ? Colors.red.shade900 : Colors.red.shade50)
-          : (isDarkMode ? Colors.green.shade900 : Colors.green.shade50),
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  localizations.monthlyBudget,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : Colors.black,
-                      ),
-                ),
-                Text(
-                  '${monthlyBudget.toStringAsFixed(0)}',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: isDarkMode ? Colors.white : Colors.black,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: budgetUsed,
-              backgroundColor:
-                  isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-              color: isOverBudget ? Colors.red : Colors.green,
-              minHeight: 10,
-              borderRadius: BorderRadius.circular(5),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      localizations.spent,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isDarkMode ? Colors.white : Colors.black87,
+            for (final action in actions)
+              Expanded(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: action.onTap,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      children: [
+                        IconBadge(
+                            icon: action.icon, color: action.color, size: 48),
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            action.label,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.labelMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      '${totalExpense.toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: isDarkMode
-                                ? Colors.white
-                                : (isOverBudget ? Colors.red : Colors.green),
-                          ),
-                    ),
-                  ],
+                  ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      isOverBudget
-                          ? localizations.overBudget
-                          : localizations.remaining,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isDarkMode ? Colors.white : Colors.black87,
-                          ),
-                    ),
-                    Text(
-                      '${remainingBudget.toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: isDarkMode
-                                ? Colors.white
-                                : (isOverBudget ? Colors.red : Colors.green),
-                          ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildCategoryCards(
-    BuildContext context,
-    Map<String, double> categoryExpense,
-    ExpenseProvider expenseProvider,
-  ) {
-    final localizations = AppLocalizations.of(context)!;
+class _BudgetCard extends StatelessWidget {
+  const _BudgetCard({required this.spent, required this.budget});
 
-    if (categoryExpense.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Center(child: Text(localizations.noExpensesInAnyCategory)),
-        ),
-      );
-    }
+  final double spent;
+  final double budget;
 
-    return Column(
-      children: ExpenseCategory.all.map((category) {
-        final amount = categoryExpense[category] ?? 0.0;
-        if (amount == 0) return const SizedBox.shrink();
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final palette = AppPalette.of(context);
 
-        final color = Color(
-          ExpenseCategory.getCategoryColor(category)['color']!,
-        );
+    final ratio = budget > 0 ? spent / budget : 0.0;
+    final over = spent > budget;
+    final color =
+        over ? palette.expense : (ratio >= 0.8 ? palette.warning : palette.income);
+    final percent = '${AppFormat.number(context, (ratio * 100).round())}%';
+    final left = (budget - spent).abs();
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  ExpenseCategory.getIcon(category),
-                  style: const TextStyle(fontSize: 24),
-                ),
-              ),
-            ),
-            title: Text(
-              localizations.getCategoryName(category),
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            trailing: Text(
-              '${amount.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CategoryReportPage(
-                    category: category,
+    return AppCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Flexible(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: AppFormat.money(context, spent, decimals: 0),
+                        style: textTheme.titleLarge,
+                      ),
+                      TextSpan(
+                        text:
+                            '  / ${AppFormat.money(context, budget, decimals: 0)}',
+                        style: textTheme.bodyMedium
+                            ?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                    ],
                   ),
                 ),
-              );
-            },
+              ),
+              const SizedBox(width: 8),
+              StatusChip(
+                label: over ? l.overBudget : '$percent ${l.usedLabel}',
+                color: color,
+                icon: over ? Icons.warning_amber_rounded : null,
+              ),
+            ],
           ),
-        );
-      }).toList(),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: ratio.clamp(0.0, 1.0),
+              minHeight: 10,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Text(
+                over ? l.overBudget : l.remaining,
+                style: textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+              const Spacer(),
+              Text(
+                AppFormat.money(context, left),
+                style: textTheme.titleSmall?.copyWith(color: color),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
+}
 
-  Widget _buildBottomNavBar(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
+class _CategoryBreakdown extends StatelessWidget {
+  const _CategoryBreakdown({
+    required this.categoryExpense,
+    required this.onCategoryTap,
+  });
 
-    return BottomNavigationBar(
-      currentIndex: 0,
-      onTap: (index) {
-        if (index == 1) {
-          Navigator.pushReplacementNamed(context, '/history');
-        } else if (index == 2) {
-          Navigator.pushReplacementNamed(context, '/settings');
-        }
-      },
-      items: [
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.dashboard),
-          label: localizations.dashboard,
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.history),
-          label: localizations.history,
-        ),
-        BottomNavigationBarItem(
-          icon: const Icon(Icons.settings),
-          label: localizations.settings,
-        ),
-      ],
+  final Map<String, double> categoryExpense;
+  final ValueChanged<String> onCategoryTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final total = categoryExpense.values.fold(0.0, (sum, v) => sum + v);
+    final entries = categoryExpense.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Card(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 20, bottom: 8),
+            child: CategoryPieChart(categoryExpense: categoryExpense),
+          ),
+          for (final entry in entries)
+            InkWell(
+              onTap: () => onCategoryTap(entry.key),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+                child: Row(
+                  children: [
+                    IconBadge(
+                      emoji: ExpenseCategory.getIcon(entry.key),
+                      color: Color(ExpenseCategory.getCategoryColor(
+                          entry.key)['color']!),
+                      size: 38,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  l.getCategoryName(entry.key),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.titleSmall,
+                                ),
+                              ),
+                              Text(
+                                AppFormat.money(context, entry.value),
+                                style: textTheme.titleSmall
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: total > 0 ? entry.value / total : 0,
+                                    minHeight: 6,
+                                    color: Color(ExpenseCategory
+                                        .getCategoryColor(entry.key)['color']!),
+                                    backgroundColor: scheme.surfaceContainer,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              SizedBox(
+                                width: 40,
+                                child: Text(
+                                  '${AppFormat.number(context, total > 0 ? (entry.value / total * 100).round() : 0)}%',
+                                  textAlign: TextAlign.right,
+                                  style: textTheme.labelSmall?.copyWith(
+                                      color: scheme.onSurfaceVariant),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded,
+                        color: scheme.onSurfaceVariant),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
     );
   }
 }

@@ -105,6 +105,12 @@ class HiveService {
     return box.get('isDarkMode', defaultValue: false) as bool;
   }
 
+  // Settings - Language (written by LanguageProvider)
+  static String getLanguage() {
+    final box = getSettingsBox();
+    return box.get('language', defaultValue: 'en') as String;
+  }
+
   // Settings - Current User ID (to track which user's data is stored)
   static Future<void> setCurrentUserId(String userId) async {
     final box = getSettingsBox();

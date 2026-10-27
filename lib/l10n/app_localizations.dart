@@ -370,6 +370,76 @@ abstract class AppLocalizations {
 
   // Helper method to get translated category name
   String getCategoryName(String category);
+
+  // Design refresh
+  String get goodMorning;
+  String get goodAfternoon;
+  String get goodEvening;
+  String get overview;
+  String get monthBalance;
+  String get recentTransactions;
+  String get seeAll;
+  String get today;
+  String get yesterday;
+  String get usedLabel;
+  String get total;
+  String get average;
+  String get highestDay;
+  String get searchTransactions;
+  String get deleteTransactionTitle;
+  String get deleteCannotUndo;
+  String get transactionDeleted;
+  String get deleteProfileTitle;
+  String get deleteProfileMessage;
+  String get activeGoals;
+  String get completedGoals;
+  String get totalSavings;
+  String get saved;
+  String get withdrawn;
+  String get completedLabel;
+  String get depositLabel;
+  String get withdrawalLabel;
+  String get downloadPdf;
+  String get sharePdf;
+  String get noExpensesInPeriod;
+  String get general;
+  String get dangerZone;
+  String get developerInfoSubtitle;
+  String get clearAllDataSubtitle;
+  String get statementFormatNote;
+  String get profileNameHint;
+  String get congratulations;
+  String get awesome;
+  String get aboutDeveloper;
+  String get softwareDeveloper;
+  String get appDescription;
+  String get contact;
+  String get emailLabel;
+  String get websiteLabel;
+  String get permanentDeletion;
+  String get deletionWillTitle;
+  String get deletionPointDevice;
+  String get deletionPointCloud;
+  String get deletionPointRecovery;
+  String get typeToConfirm;
+  String get confirmTextVerified;
+  String get continueLabel;
+  String get finalWarning;
+  String get finalWarningMessage;
+  String get keepMyData;
+  String get deletePermanently;
+  String get preparingDeletion;
+  String get deletingData;
+  String get deletionComplete;
+  String get allDataDeleted;
+  String get cloudDeletionPending;
+  String daysLeft(int days);
+  String daysOverdue(int days);
+  String transactionCount(int count);
+  String lastNDays(int days);
+  String startingIn(int seconds);
+  String secondsElapsed(int seconds);
+  String amountSaved(String amount);
 }
 
 class EnglishLocalizations extends AppLocalizations {
@@ -804,28 +874,28 @@ class EnglishLocalizations extends AppLocalizations {
   @override
   String get incomeUpdated => 'Income updated!';
   @override
-  String get quickSelectPeriod => 'QUICK SELECT PERIOD';
+  String get quickSelectPeriod => 'Quick select';
   @override
   String get last30Days => 'Last 30 Days';
   @override
   String get thisYear => 'This Year';
   @override
-  String get customDateRange => 'CUSTOM DATE RANGE';
+  String get customDateRange => 'Custom date range';
   @override
   String get totalCredits => 'Total Credits (+)';
   @override
   String get totalDebits => 'Total Debits (-)';
   @override
-  String get surplus => 'SURPLUS';
+  String get surplus => 'Surplus';
   @override
-  String get deficit => 'DEFICIT';
+  String get deficit => 'Deficit';
   @override
   String get noTransactionsFound => 'No Transactions Found';
   @override
   String get noTransactionsMessage =>
       'No transactions found for the selected period.\\nPlease adjust your date range.';
   @override
-  String get downloadPdfStatement => 'DOWNLOAD PDF STATEMENT';
+  String get downloadPdfStatement => 'Download PDF statement';
 
   // Category Dialog Strings (selectIncomeCategory and selectCategory already exist above)
   @override
@@ -1021,6 +1091,144 @@ class EnglishLocalizations extends AppLocalizations {
   @override
   String get startByAddingDeposit =>
       'Start by adding savings to your goal';
+
+  // Design refresh
+  @override
+  String get goodMorning => 'Good morning';
+  @override
+  String get goodAfternoon => 'Good afternoon';
+  @override
+  String get goodEvening => 'Good evening';
+  @override
+  String get overview => 'Overview';
+  @override
+  String get monthBalance => 'Balance this month';
+  @override
+  String get recentTransactions => 'Recent transactions';
+  @override
+  String get seeAll => 'See all';
+  @override
+  String get today => 'Today';
+  @override
+  String get yesterday => 'Yesterday';
+  @override
+  String get usedLabel => 'used';
+  @override
+  String get total => 'Total';
+  @override
+  String get average => 'Average';
+  @override
+  String get highestDay => 'Highest day';
+  @override
+  String get searchTransactions => 'Search transactions';
+  @override
+  String get deleteTransactionTitle => 'Delete transaction?';
+  @override
+  String get deleteCannotUndo => 'This cannot be undone.';
+  @override
+  String get transactionDeleted => 'Transaction deleted';
+  @override
+  String get deleteProfileTitle => 'Delete goal?';
+  @override
+  String get deleteProfileMessage => 'All deposits and withdrawals of this goal will be deleted too.';
+  @override
+  String get activeGoals => 'Active goals';
+  @override
+  String get completedGoals => 'Completed goals';
+  @override
+  String get totalSavings => 'Total savings';
+  @override
+  String get saved => 'Saved';
+  @override
+  String get withdrawn => 'Withdrawn';
+  @override
+  String get completedLabel => 'Completed';
+  @override
+  String get depositLabel => 'Deposit';
+  @override
+  String get withdrawalLabel => 'Withdrawal';
+  @override
+  String get downloadPdf => 'Download PDF';
+  @override
+  String get sharePdf => 'Share PDF';
+  @override
+  String get noExpensesInPeriod => 'No expenses in this period';
+  @override
+  String get general => 'General';
+  @override
+  String get dangerZone => 'Danger zone';
+  @override
+  String get developerInfoSubtitle => 'About the developer and contact';
+  @override
+  String get clearAllDataSubtitle => 'Permanently delete all expenses';
+  @override
+  String get statementFormatNote => 'Your statement is created as a bank-style PDF with a running balance for every transaction.';
+  @override
+  String get profileNameHint => 'e.g. Emergency fund';
+  @override
+  String get congratulations => 'Congratulations!';
+  @override
+  String get awesome => 'Awesome!';
+  @override
+  String get aboutDeveloper => 'About the developer';
+  @override
+  String get softwareDeveloper => 'Software Developer';
+  @override
+  String get appDescription => 'A personal finance app for tracking expenses and income, managing budgets and savings goals, with clear charts and PDF statements.';
+  @override
+  String get contact => 'Contact';
+  @override
+  String get emailLabel => 'Email';
+  @override
+  String get websiteLabel => 'Website';
+  @override
+  String get permanentDeletion => 'Delete all data permanently';
+  @override
+  String get deletionWillTitle => 'This will:';
+  @override
+  String get deletionPointDevice => 'Delete all expenses from this device';
+  @override
+  String get deletionPointCloud => 'Delete all your expenses from the cloud';
+  @override
+  String get deletionPointRecovery => 'Make recovery impossible';
+  @override
+  String get typeToConfirm => 'Type DELETE ALL DATA to confirm';
+  @override
+  String get confirmTextVerified => 'Confirmation verified';
+  @override
+  String get continueLabel => 'Continue';
+  @override
+  String get finalWarning => 'Final warning';
+  @override
+  String get finalWarningMessage => 'All your expense data will be deleted permanently and cannot be recovered. Are you absolutely sure?';
+  @override
+  String get keepMyData => 'Keep my data';
+  @override
+  String get deletePermanently => 'Delete permanently';
+  @override
+  String get preparingDeletion => 'Preparing to delete…';
+  @override
+  String get deletingData => 'Deleting all data…';
+  @override
+  String get deletionComplete => 'Deletion complete';
+  @override
+  String get allDataDeleted => 'All data has been permanently deleted.';
+  @override
+  String get cloudDeletionPending => 'Deleted on this device. The cloud copy will finish deleting once you\'re online.';
+  @override
+  String daysLeft(int days) => '$days days left';
+  @override
+  String daysOverdue(int days) => '$days days overdue';
+  @override
+  String transactionCount(int count) => count == 1 ? '1 transaction' : '$count transactions';
+  @override
+  String lastNDays(int days) => 'Last $days days';
+  @override
+  String startingIn(int seconds) => 'Starting in ${seconds}s';
+  @override
+  String secondsElapsed(int seconds) => '${seconds}s elapsed';
+  @override
+  String amountSaved(String amount) => '$amount saved';
 
   @override
   String getCategoryName(String category) {
@@ -1741,6 +1949,153 @@ class BanglaLocalizations extends AppLocalizations {
   String get noMatchingTransactions => 'কোন মিল পাওয়া যায়নি';
   @override
   String get startByAddingDeposit => 'আপনার সঞ্চয় লক্ষ্যে জমা দিয়ে শুরু করুন';
+
+  // Design refresh
+  @override
+  String get goodMorning => 'শুভ সকাল';
+  @override
+  String get goodAfternoon => 'শুভ অপরাহ্ন';
+  @override
+  String get goodEvening => 'শুভ সন্ধ্যা';
+  @override
+  String get overview => 'সংক্ষিপ্ত চিত্র';
+  @override
+  String get monthBalance => 'এই মাসের ব্যালেন্স';
+  @override
+  String get recentTransactions => 'সাম্প্রতিক লেনদেন';
+  @override
+  String get seeAll => 'সব দেখুন';
+  @override
+  String get today => 'আজ';
+  @override
+  String get yesterday => 'গতকাল';
+  @override
+  String get usedLabel => 'ব্যবহৃত';
+  @override
+  String get total => 'মোট';
+  @override
+  String get average => 'গড়';
+  @override
+  String get highestDay => 'সর্বোচ্চ দিন';
+  @override
+  String get searchTransactions => 'লেনদেন খুঁজুন';
+  @override
+  String get deleteTransactionTitle => 'লেনদেনটি মুছবেন?';
+  @override
+  String get deleteCannotUndo => 'এটি আর ফিরিয়ে আনা যাবে না।';
+  @override
+  String get transactionDeleted => 'লেনদেন মুছে ফেলা হয়েছে';
+  @override
+  String get deleteProfileTitle => 'লক্ষ্যটি মুছবেন?';
+  @override
+  String get deleteProfileMessage => 'এই লক্ষ্যের সব জমা ও উত্তোলনও মুছে যাবে।';
+  @override
+  String get activeGoals => 'চলমান লক্ষ্য';
+  @override
+  String get completedGoals => 'সম্পন্ন লক্ষ্য';
+  @override
+  String get totalSavings => 'মোট সঞ্চয়';
+  @override
+  String get saved => 'জমা';
+  @override
+  String get withdrawn => 'উত্তোলন';
+  @override
+  String get completedLabel => 'সম্পন্ন';
+  @override
+  String get depositLabel => 'জমা';
+  @override
+  String get withdrawalLabel => 'উত্তোলন';
+  @override
+  String get downloadPdf => 'PDF ডাউনলোড';
+  @override
+  String get sharePdf => 'PDF শেয়ার';
+  @override
+  String get noExpensesInPeriod => 'এই সময়ে কোনো খরচ নেই';
+  @override
+  String get general => 'সাধারণ';
+  @override
+  String get dangerZone => 'সতর্কতা অঞ্চল';
+  @override
+  String get developerInfoSubtitle => 'ডেভেলপার পরিচিতি ও যোগাযোগ';
+  @override
+  String get clearAllDataSubtitle => 'সব খরচ স্থায়ীভাবে মুছে ফেলুন';
+  @override
+  String get statementFormatNote => 'প্রতিটি লেনদেনের চলতি ব্যালেন্সসহ ব্যাংক-স্টাইলের PDF আকারে আপনার বিবরণী তৈরি হবে।';
+  @override
+  String get profileNameHint => 'যেমন: জরুরি তহবিল';
+  @override
+  String get congratulations => 'অভিনন্দন!';
+  @override
+  String get awesome => 'দারুণ!';
+  @override
+  String get aboutDeveloper => 'ডেভেলপার সম্পর্কে';
+  @override
+  String get softwareDeveloper => 'সফটওয়্যার ডেভেলপার';
+  @override
+  String get appDescription => 'খরচ ও আয়ের হিসাব, বাজেট ও সঞ্চয়ের লক্ষ্য ব্যবস্থাপনার জন্য একটি ব্যক্তিগত আর্থিক অ্যাপ — সহজ চার্ট ও PDF বিবরণীসহ।';
+  @override
+  String get contact => 'যোগাযোগ';
+  @override
+  String get emailLabel => 'ইমেইল';
+  @override
+  String get websiteLabel => 'ওয়েবসাইট';
+  @override
+  String get permanentDeletion => 'সব ডেটা স্থায়ীভাবে মুছুন';
+  @override
+  String get deletionWillTitle => 'এর ফলে:';
+  @override
+  String get deletionPointDevice => 'এই ডিভাইস থেকে সব খরচ মুছে যাবে';
+  @override
+  String get deletionPointCloud => 'ক্লাউড থেকে আপনার সব খরচ মুছে যাবে';
+  @override
+  String get deletionPointRecovery => 'ডেটা আর কখনো ফেরত আনা যাবে না';
+  @override
+  String get typeToConfirm => 'নিশ্চিত করতে DELETE ALL DATA লিখুন';
+  @override
+  String get confirmTextVerified => 'নিশ্চিতকরণ সঠিক হয়েছে';
+  @override
+  String get continueLabel => 'চালিয়ে যান';
+  @override
+  String get finalWarning => 'শেষ সতর্কতা';
+  @override
+  String get finalWarningMessage => 'আপনার সব খরচের ডেটা স্থায়ীভাবে মুছে যাবে এবং আর ফেরত আনা যাবে না। আপনি কি পুরোপুরি নিশ্চিত?';
+  @override
+  String get keepMyData => 'ডেটা রাখুন';
+  @override
+  String get deletePermanently => 'স্থায়ীভাবে মুছুন';
+  @override
+  String get preparingDeletion => 'মুছে ফেলার প্রস্তুতি চলছে…';
+  @override
+  String get deletingData => 'সব ডেটা মুছে ফেলা হচ্ছে…';
+  @override
+  String get deletionComplete => 'মুছে ফেলা সম্পন্ন';
+  @override
+  String get allDataDeleted => 'সব ডেটা স্থায়ীভাবে মুছে ফেলা হয়েছে।';
+  @override
+  String get cloudDeletionPending => 'এই ডিভাইস থেকে মুছে ফেলা হয়েছে। অনলাইনে এলে ক্লাউডের কপিও মুছে যাবে।';
+  @override
+  String daysLeft(int days) => '${_bn(days)} দিন বাকি';
+  @override
+  String daysOverdue(int days) => '${_bn(days)} দিন পেরিয়ে গেছে';
+  @override
+  String transactionCount(int count) => '${_bn(count)}টি লেনদেন';
+  @override
+  String lastNDays(int days) => 'শেষ ${_bn(days)} দিন';
+  @override
+  String startingIn(int seconds) => '${_bn(seconds)} সেকেন্ডে শুরু হবে';
+  @override
+  String secondsElapsed(int seconds) => '${_bn(seconds)} সেকেন্ড পেরিয়েছে';
+  @override
+  String amountSaved(String amount) => '$amount জমা হয়েছে';
+
+  static String _bn(int value) {
+    const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    return value
+        .toString()
+        .split('')
+        .map((c) => int.tryParse(c) == null ? c : digits[int.parse(c)])
+        .join();
+  }
 
   @override
   String getCategoryName(String category) {

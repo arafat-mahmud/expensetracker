@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../l10n/app_localizations.dart';
+import '../theme/app_format.dart';
+import '../theme/app_theme.dart';
 
+/// Daily spending bars for the last [days] days (key 1 = oldest, [days] =
+/// today), with a dashed line at the average of the days with spending
 class DailyBarChart extends StatelessWidget {
   final Map<int, double> dailyExpense;
   final int days;
@@ -13,204 +18,146 @@ class DailyBarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (dailyExpense.isEmpty) {
-      return const Center(
-        child: Text('No expense data for this month'),
-      );
-    }
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final palette = AppPalette.of(context);
+    final l = AppLocalizations.of(context);
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.grey[400] : Colors.grey[700];
-
-    final maxY = dailyExpense.values
-        .fold(0.0, (max, value) => value > max ? value : max);
-
-    // Calculate average expense (only for days with expenses)
-    final totalExpense =
-        dailyExpense.values.fold(0.0, (sum, value) => sum + value);
-    final daysWithExpenses = dailyExpense.values.where((v) => v > 0).length;
-    final averageExpense =
-        daysWithExpenses > 0 ? totalExpense / daysWithExpenses : 0.0;
-
-    // Calculate proper max Y with some padding
-    final scaledMaxY = maxY > 0 ? (maxY * 1.2).toDouble() : 100.0;
+    final values = dailyExpense.values;
+    final maxY = values.fold(0.0, (max, v) => v > max ? v : max);
+    final spendingDays = values.where((v) => v > 0);
+    final average = spendingDays.isEmpty
+        ? 0.0
+        : spendingDays.reduce((a, b) => a + b) / spendingDays.length;
+    final top = maxY > 0 ? maxY * 1.25 : 100.0;
+    final today = DateTime.now();
+    final labelStyle = textTheme.labelSmall?.copyWith(
+      color: scheme.onSurfaceVariant,
+      fontWeight: FontWeight.w500,
+    );
+    final labelEvery = days <= 7 ? 1 : (days <= 14 ? 2 : 5);
+    final barWidth = days <= 7 ? 18.0 : (days <= 14 ? 10.0 : 6.0);
 
     return BarChart(
       BarChartData(
-        alignment: BarChartAlignment.spaceEvenly,
-        maxY: scaledMaxY,
+        alignment: BarChartAlignment.spaceAround,
+        maxY: top,
         minY: 0,
         barTouchData: BarTouchData(
-          enabled: true,
           touchTooltipData: BarTouchTooltipData(
-            getTooltipColor: (group) => Colors.blueAccent,
-            tooltipPadding: const EdgeInsets.all(8),
-            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              return BarTooltipItem(
-                '${rod.toY.toStringAsFixed(0)}',
-                const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              );
-            },
+            getTooltipColor: (_) => scheme.inverseSurface,
+            tooltipBorderRadius: BorderRadius.circular(10),
+            tooltipPadding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            getTooltipItem: (group, groupIndex, rod, rodIndex) =>
+                BarTooltipItem(
+              AppFormat.money(context, rod.toY, decimals: 0),
+              textTheme.labelMedium!.copyWith(
+                color: scheme.onInverseSurface,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ),
         titlesData: FlTitlesData(
-          show: true,
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 32,
-              getTitlesWidget: (value, meta) {
-                if (days <= 7) {
-                  final today = DateTime.now();
-                  final day =
-                      today.subtract(Duration(days: days - value.toInt()));
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      '${day.day}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: textColor,
-                      ),
-                    ),
-                  );
-                } else if (days <= 14) {
-                  if (value.toInt() % 2 == 0 || value.toInt() == 1) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        value.toInt().toString(),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: textColor,
-                        ),
-                      ),
-                    );
-                  }
-                } else {
-                  if (value.toInt() % 5 == 0 || value.toInt() == 1) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        value.toInt().toString(),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: textColor,
-                        ),
-                      ),
-                    );
-                  }
-                }
-                return const Text('');
-              },
-            ),
-          ),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 50,
+              reservedSize: 42,
+              interval: top / 4,
               getTitlesWidget: (value, meta) {
-                if (value >= 1000) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: Text(
-                      '${(value / 1000).toStringAsFixed(0)}k',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: textColor,
-                      ),
-                    ),
-                  );
-                }
+                if (value == meta.max) return const SizedBox.shrink();
+                final label = value >= 1000
+                    ? '${AppFormat.number(context, value / 1000)}k'
+                    : AppFormat.number(context, value);
                 return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: Text(
-                    value.toInt().toString(),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: textColor,
-                    ),
-                  ),
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Text(label,
+                      style: labelStyle, textAlign: TextAlign.right),
                 );
               },
             ),
           ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              interval: 1,
+              getTitlesWidget: (value, meta) {
+                final index = value.toInt();
+                final fromEnd = days - index;
+                if (fromEnd % labelEvery != 0) return const SizedBox.shrink();
+                final date = today.subtract(Duration(days: fromEnd));
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(AppFormat.day(context, date), style: labelStyle),
+                );
+              },
+            ),
           ),
         ),
         borderData: FlBorderData(show: false),
         gridData: FlGridData(
-          show: true,
           drawVerticalLine: false,
-          horizontalInterval: scaledMaxY / 5,
-          getDrawingHorizontalLine: (value) {
-            return FlLine(
-              color: isDark
-                  ? Colors.grey.withOpacity(0.15)
-                  : Colors.grey.withOpacity(0.2),
-              strokeWidth: 1,
-            );
-          },
+          horizontalInterval: top / 4,
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: scheme.outlineVariant,
+            strokeWidth: 1,
+          ),
         ),
         extraLinesData: ExtraLinesData(
           horizontalLines: [
-            HorizontalLine(
-              y: averageExpense,
-              color: Colors.orange.shade600,
-              strokeWidth: 2,
-              dashArray: [5, 5],
-              label: HorizontalLineLabel(
-                show: true,
-                alignment: Alignment.topRight,
-                padding: const EdgeInsets.only(right: 5, bottom: 5),
-                style: TextStyle(
-                  color: Colors.orange.shade700,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 10,
+            if (average > 0)
+              HorizontalLine(
+                y: average,
+                color: palette.warning,
+                strokeWidth: 1.5,
+                dashArray: [6, 4],
+                label: HorizontalLineLabel(
+                  show: true,
+                  alignment: Alignment.topRight,
+                  padding: const EdgeInsets.only(right: 4, bottom: 4),
+                  style: textTheme.labelSmall?.copyWith(
+                    color: palette.warning,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  labelResolver: (_) =>
+                      '${l.average} ${AppFormat.money(context, average, decimals: 0)}',
                 ),
-                labelResolver: (line) =>
-                    'Avg: ${averageExpense.toStringAsFixed(0)}',
               ),
-            ),
           ],
         ),
-        barGroups: _generateBarGroups(),
+        barGroups: [
+          for (var day = 1; day <= days; day++)
+            BarChartGroupData(
+              x: day,
+              barRods: [
+                BarChartRodData(
+                  toY: dailyExpense[day] ?? 0,
+                  width: barWidth,
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(barWidth / 2)),
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      scheme.primary.withValues(alpha: 0.75),
+                      scheme.primary,
+                    ],
+                  ),
+                  backDrawRodData: BackgroundBarChartRodData(
+                    show: true,
+                    toY: top,
+                    color: scheme.surfaceContainer,
+                  ),
+                ),
+              ],
+            ),
+        ],
       ),
     );
-  }
-
-  List<BarChartGroupData> _generateBarGroups() {
-    return List.generate(days, (index) {
-      final day = index + 1;
-      final value = dailyExpense[day] ?? 0.0;
-      return BarChartGroupData(
-        x: day,
-        barRods: [
-          BarChartRodData(
-            toY: value,
-            fromY: 0,
-            color: value > 0 ? Colors.blue : Colors.transparent,
-            width: 12,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(6),
-              topRight: Radius.circular(6),
-            ),
-          ),
-        ],
-      );
-    });
   }
 }
