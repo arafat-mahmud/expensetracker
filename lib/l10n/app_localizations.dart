@@ -128,6 +128,22 @@ abstract class AppLocalizations {
   String get signedInAs;
   String get signOutConfirm;
 
+  // Login screen
+  String get loginTagline;
+  String get loginTitle;
+  String get loginSubtitle;
+  String get continueWithGoogle;
+  String get signingIn;
+  String get featureSyncTitle;
+  String get featureSyncDesc;
+  String get featureSecureTitle;
+  String get featureSecureDesc;
+  String get featureInsightsTitle;
+  String get featureInsightsDesc;
+  String get secureSignInNote;
+  String get signInFailed;
+  String get signInNetworkError;
+
   // Statement
   String get generateStatement;
   String get selectPeriod;
@@ -565,6 +581,39 @@ class EnglishLocalizations extends AppLocalizations {
   String get signedInAs => 'Signed in as';
   @override
   String get signOutConfirm => 'Are you sure you want to sign out?';
+
+  // Login screen
+  @override
+  String get loginTagline => 'Smart money management, on every device';
+  @override
+  String get loginTitle => 'Welcome';
+  @override
+  String get loginSubtitle =>
+      'Sign in to keep your finances safe and in sync across all your devices.';
+  @override
+  String get continueWithGoogle => 'Continue with Google';
+  @override
+  String get signingIn => 'Signing in…';
+  @override
+  String get featureSyncTitle => 'Real-time sync';
+  @override
+  String get featureSyncDesc => 'Changes appear on all your devices instantly';
+  @override
+  String get featureSecureTitle => 'Private & secure';
+  @override
+  String get featureSecureDesc => 'Only you can see your data';
+  @override
+  String get featureInsightsTitle => 'Smart insights';
+  @override
+  String get featureInsightsDesc => 'Charts, budgets and PDF statements';
+  @override
+  String get secureSignInNote =>
+      'Secured by Google. We never see your password.';
+  @override
+  String get signInFailed => 'Sign-in failed. Please try again.';
+  @override
+  String get signInNetworkError =>
+      'No internet connection. Check your network and try again.';
 
   @override
   String get generateStatement => 'Generate Statement';
@@ -1253,6 +1302,39 @@ class BanglaLocalizations extends AppLocalizations {
   String get signedInAs => 'সাইন ইন আছে';
   @override
   String get signOutConfirm => 'আপনি কি সাইন আউট করতে চান?';
+
+  // Login screen
+  @override
+  String get loginTagline => 'স্মার্ট হিসাব, সব ডিভাইসে সবসময়';
+  @override
+  String get loginTitle => 'স্বাগতম';
+  @override
+  String get loginSubtitle =>
+      'আপনার আর্থিক হিসাব নিরাপদ রাখতে এবং সব ডিভাইসে সিঙ্ক করতে সাইন ইন করুন।';
+  @override
+  String get continueWithGoogle => 'Google দিয়ে চালিয়ে যান';
+  @override
+  String get signingIn => 'সাইন ইন হচ্ছে…';
+  @override
+  String get featureSyncTitle => 'রিয়েল-টাইম সিঙ্ক';
+  @override
+  String get featureSyncDesc => 'যেকোনো পরিবর্তন সাথে সাথে সব ডিভাইসে';
+  @override
+  String get featureSecureTitle => 'নিরাপদ ও গোপনীয়';
+  @override
+  String get featureSecureDesc => 'আপনার ডেটা শুধু আপনিই দেখতে পারবেন';
+  @override
+  String get featureInsightsTitle => 'স্মার্ট বিশ্লেষণ';
+  @override
+  String get featureInsightsDesc => 'চার্ট, বাজেট আর PDF বিবরণী';
+  @override
+  String get secureSignInNote =>
+      'Google দ্বারা সুরক্ষিত। আপনার পাসওয়ার্ড আমরা কখনো দেখি না।';
+  @override
+  String get signInFailed => 'সাইন ইন হয়নি। আবার চেষ্টা করুন।';
+  @override
+  String get signInNetworkError =>
+      'ইন্টারনেট সংযোগ নেই। নেটওয়ার্ক দেখে আবার চেষ্টা করুন।';
 
   @override
   String get generateStatement => 'বিবৃতি তৈরি করুন';

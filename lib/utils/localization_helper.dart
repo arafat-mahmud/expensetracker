@@ -114,6 +114,11 @@ class LocalizationHelper {
   }
 
   /// Convert English digits to localized digits (Bangla, etc.)
+  /// Convert the digits in any string (e.g. "12,500") for the given language
+  static String localizeDigits(String input, String languageCode) {
+    return _convertToLocalDigits(input, languageCode);
+  }
+
   static String _convertToLocalDigits(String input, String languageCode) {
     if (languageCode == 'bn') {
       const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
