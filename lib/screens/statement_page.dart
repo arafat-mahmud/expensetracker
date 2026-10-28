@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/language_provider.dart';
+import '../providers/account_provider.dart';
+import '../models/account_model.dart';
 import '../services/localized_statement_service.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_format.dart';
@@ -169,6 +171,19 @@ class _StatementPageState extends State<StatementPage> {
       'last6Months': l.last6Months,
       'thisYear': l.thisYear,
     };
+
+    if (!Provider.of<AccountProvider>(context)
+        .isEnabled(AppFeature.statement)) {
+      return Scaffold(
+        appBar: AppBar(title: Text(AppFormat.sentence(l.accountStatement))),
+        body: Center(
+          child: EmptyState(
+            icon: Icons.block_rounded,
+            title: l.featureDisabled,
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: Text(AppFormat.sentence(l.accountStatement))),

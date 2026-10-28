@@ -24,6 +24,7 @@ class ExpenseProvider with ChangeNotifier {
     collection: _firestoreService.getUserExpensesCollection,
     isLocalEmpty: () => HiveService.getExpenseBox().isEmpty,
     apply: _applyRemoteChanges,
+    onInitialLoad: _restoreLegacyBudget,
   );
 
   List<Expense> get expenses => _expenses;
@@ -397,7 +398,6 @@ class ExpenseProvider with ChangeNotifier {
   /// Returns true when saved expenses were loaded into an empty local store.
   Future<bool> startCloudSync() async {
     final loaded = await _cloudSync.start();
-    if (loaded) await _restoreLegacyBudget();
     return loaded && _expenses.isNotEmpty;
   }
 

@@ -18,6 +18,9 @@ import 'providers/auth_provider.dart';
 import 'providers/language_provider.dart';
 import 'providers/mode_provider.dart';
 import 'providers/deposit_provider.dart';
+import 'providers/account_provider.dart';
+import 'models/account_model.dart';
+import 'screens/access/access_status_page.dart';
 import 'l10n/app_localizations.dart';
 import 'theme/app_theme.dart';
 import 'screens/dashboard_page.dart';
@@ -86,6 +89,8 @@ class ExpenseTrackerApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
         ChangeNotifierProvider(create: (_) => ModeProvider()),
         ChangeNotifierProvider(create: (_) => DepositProvider()),
+        // Approval, blocking, maintenance and feature switches
+        ChangeNotifierProvider(create: (_) => AccountProvider(), lazy: false),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -95,8 +100,12 @@ class ExpenseTrackerApp extends StatelessWidget {
                 builder: (context, languageProvider, child) {
                   final languageCode = languageProvider.languageCode;
 
-                  return Consumer<ModeProvider>(
-                    builder: (context, modeProvider, child) {
+                  return Consumer2<ModeProvider, AccountProvider>(
+                    builder: (context, modeProvider, accountProvider, child) {
+                      // Savings mode only while the admin allows it
+                      final savingsMode = modeProvider.isDepositMode &&
+                          accountProvider.isEnabled(AppFeature.savings);
+                      final access = accountProvider.state;
                       return MaterialApp(
                         title: 'Expense Tracker',
                         debugShowCheckedModeBanner: false,
@@ -115,11 +124,16 @@ class ExpenseTrackerApp extends StatelessWidget {
                         darkTheme: AppTheme.dark(languageCode),
                         // Status bar icons that match the theme on every
                         // screen (app bars apply the same style)
+                        // Pending, blocked or maintenance: the access screen
+                        // replaces every route until the admin lets them in
                         builder: (context, child) =>
                             AnnotatedRegion<SystemUiOverlayStyle>(
                           value: AppTheme.overlayStyle(
                               Theme.of(context).brightness),
-                          child: child!,
+                          child: access == AccessState.signedOut ||
+                                  access == AccessState.approved
+                              ? child!
+                              : AccessStatusPage(state: access),
                         ),
                         themeMode: themeProvider.isDarkMode
                             ? ThemeMode.dark
@@ -127,11 +141,11 @@ class ExpenseTrackerApp extends StatelessWidget {
                         initialRoute: '/',
                         routes: {
                           '/': (context) => authProvider.isAuthenticated
-                              ? (modeProvider.isDepositMode
+                              ? (savingsMode
                                   ? const DepositDashboardPage()
                                   : const DashboardPage())
                               : const LoginPage(),
-                          '/history': (context) => modeProvider.isDepositMode
+                          '/history': (context) => savingsMode
                               ? const DepositHistoryPage()
                               : const HistoryPage(),
                           '/deposit-history': (context) =>

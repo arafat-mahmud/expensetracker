@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/widgets.dart';
 import '../models/expense_model.dart';
 import '../models/deposit_model.dart';
+import 'access_gate.dart';
 import 'auth_service.dart';
 import 'hive_service.dart';
 import 'firestore_service.dart';
@@ -41,6 +42,10 @@ class SyncQueueService with WidgetsBindingObserver {
     // flushed as soon as a user is signed in
     _authService.authStateChanges.listen((user) {
       if (user != null) scheduleImmediateFlush();
+    });
+    // ...and as soon as the administrator lets the account use the cloud
+    AccessGate.cloudAllowed.addListener(() {
+      if (AccessGate.cloudAllowed.value) scheduleImmediateFlush();
     });
   }
 
@@ -211,6 +216,9 @@ class SyncQueueService with WidgetsBindingObserver {
   }
 
   Future<bool> flushPendingOps() async {
+    // Pending/blocked accounts, maintenance or sync switched off: changes
+    // wait on the device rather than being rejected by the security rules
+    if (!AccessGate.cloudAllowed.value) return false;
     if (_isFlushing) {
       _flushRequested = true;
       return false;

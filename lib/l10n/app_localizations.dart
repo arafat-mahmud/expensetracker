@@ -371,6 +371,66 @@ abstract class AppLocalizations {
   // Helper method to get translated category name
   String getCategoryName(String category);
 
+  // Admin panel and account access
+  String get adminPanel;
+  String get adminPanelSubtitle;
+  String get administration;
+  String get usersTab;
+  String get appControlsTab;
+  String get statusPending;
+  String get statusApproved;
+  String get statusBlocked;
+  String get approve;
+  String get approveAll;
+  String get approveAllTitle;
+  String get block;
+  String get unblock;
+  String get moveToPending;
+  String get blockUserTitle;
+  String get blockUserMessage;
+  String get blockReasonHint;
+  String get userApproved;
+  String get userBlocked;
+  String get userMovedToPending;
+  String get searchByEmail;
+  String get userNotFound;
+  String get noUsersHere;
+  String get loadMore;
+  String get joined;
+  String get features;
+  String get featureSavings;
+  String get featureSavingsDesc;
+  String get featureStatement;
+  String get featureStatementDesc;
+  String get featureCloudSync;
+  String get featureCloudSyncDesc;
+  String get followAppSetting;
+  String get onLabel;
+  String get offLabel;
+  String get userFeaturesHint;
+  String get maintenanceMode;
+  String get maintenanceModeDesc;
+  String get maintenanceOnTitle;
+  String get maintenanceMessageLabel;
+  String get maintenanceIsOn;
+  String get newUsers;
+  String get requireApproval;
+  String get requireApprovalDesc;
+  String get featuresForEveryone;
+  String get settingSaved;
+  String get savedWhenOnline;
+  String get checkingAccount;
+  String get pendingTitle;
+  String get pendingMessage;
+  String get blockedTitle;
+  String get blockedMessage;
+  String get reasonLabel;
+  String get maintenanceTitle;
+  String get maintenanceDefaultMessage;
+  String get contactSupport;
+  String get featureDisabled;
+  String get cloudSyncPaused;
+
   // Design refresh
   String get goodMorning;
   String get goodAfternoon;
@@ -440,6 +500,7 @@ abstract class AppLocalizations {
   String startingIn(int seconds);
   String secondsElapsed(int seconds);
   String amountSaved(String amount);
+  String userCount(int count);
 }
 
 class EnglishLocalizations extends AppLocalizations {
@@ -1229,6 +1290,126 @@ class EnglishLocalizations extends AppLocalizations {
   String secondsElapsed(int seconds) => '${seconds}s elapsed';
   @override
   String amountSaved(String amount) => '$amount saved';
+  @override
+  String userCount(int count) => count == 1 ? '1 user' : '$count users';
+
+  // Admin panel and account access
+  @override
+  String get adminPanel => 'Admin panel';
+  @override
+  String get adminPanelSubtitle => 'Approve users, maintenance and features';
+  @override
+  String get administration => 'Administration';
+  @override
+  String get usersTab => 'Users';
+  @override
+  String get appControlsTab => 'App controls';
+  @override
+  String get statusPending => 'Pending';
+  @override
+  String get statusApproved => 'Approved';
+  @override
+  String get statusBlocked => 'Blocked';
+  @override
+  String get approve => 'Approve';
+  @override
+  String get approveAll => 'Approve all';
+  @override
+  String get approveAllTitle => 'Approve all pending users on this list?';
+  @override
+  String get block => 'Block';
+  @override
+  String get unblock => 'Unblock';
+  @override
+  String get moveToPending => 'Move to pending';
+  @override
+  String get blockUserTitle => 'Block this user?';
+  @override
+  String get blockUserMessage => 'They won\'t be able to use the app until you unblock them.';
+  @override
+  String get blockReasonHint => 'Reason (optional, shown to the user)';
+  @override
+  String get userApproved => 'User approved';
+  @override
+  String get userBlocked => 'User blocked';
+  @override
+  String get userMovedToPending => 'Moved to pending';
+  @override
+  String get searchByEmail => 'Find a user by email';
+  @override
+  String get userNotFound => 'No user with this email';
+  @override
+  String get noUsersHere => 'No users here';
+  @override
+  String get loadMore => 'Load more';
+  @override
+  String get joined => 'Joined';
+  @override
+  String get features => 'Features';
+  @override
+  String get featureSavings => 'Savings goals';
+  @override
+  String get featureSavingsDesc => 'Savings mode with goals, deposits and withdrawals';
+  @override
+  String get featureStatement => 'PDF statements';
+  @override
+  String get featureStatementDesc => 'Download account statements as PDF';
+  @override
+  String get featureCloudSync => 'Cloud sync';
+  @override
+  String get featureCloudSyncDesc => 'Sync data across devices. When off, data stays on the device and syncs later.';
+  @override
+  String get followAppSetting => 'Default';
+  @override
+  String get onLabel => 'On';
+  @override
+  String get offLabel => 'Off';
+  @override
+  String get userFeaturesHint => 'Only for this user. Default follows the setting for everyone.';
+  @override
+  String get maintenanceMode => 'Maintenance mode';
+  @override
+  String get maintenanceModeDesc => 'Everyone except admins sees a maintenance screen';
+  @override
+  String get maintenanceOnTitle => 'Turn on maintenance mode?';
+  @override
+  String get maintenanceMessageLabel => 'Message for users';
+  @override
+  String get maintenanceIsOn => 'Maintenance mode is on — users can\'t use the app right now.';
+  @override
+  String get newUsers => 'New users';
+  @override
+  String get requireApproval => 'Require approval';
+  @override
+  String get requireApprovalDesc => 'New users wait for your approval. When off, they are approved automatically.';
+  @override
+  String get featuresForEveryone => 'Features for everyone';
+  @override
+  String get settingSaved => 'Saved';
+  @override
+  String get savedWhenOnline => 'Saved. It applies once you\'re online.';
+  @override
+  String get checkingAccount => 'Checking your account…';
+  @override
+  String get pendingTitle => 'Waiting for approval';
+  @override
+  String get pendingMessage => 'Your account is registered. An administrator will review it soon — this screen updates by itself once you\'re approved.';
+  @override
+  String get blockedTitle => 'Account blocked';
+  @override
+  String get blockedMessage => 'Your account has been blocked by the administrator.';
+  @override
+  String get reasonLabel => 'Reason';
+  @override
+  String get maintenanceTitle => 'Under maintenance';
+  @override
+  String get maintenanceDefaultMessage => 'We\'re improving the app. Please check back soon.';
+  @override
+  String get contactSupport => 'Contact support';
+  @override
+  String get featureDisabled => 'This feature is turned off by the administrator.';
+  @override
+  String get cloudSyncPaused => 'Cloud sync is paused by the administrator. Your data is safe on this device and will sync later.';
 
   @override
   String getCategoryName(String category) {
@@ -2087,6 +2268,8 @@ class BanglaLocalizations extends AppLocalizations {
   String secondsElapsed(int seconds) => '${_bn(seconds)} সেকেন্ড পেরিয়েছে';
   @override
   String amountSaved(String amount) => '$amount জমা হয়েছে';
+  @override
+  String userCount(int count) => '${_bn(count)} জন ইউজার';
 
   static String _bn(int value) {
     const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
@@ -2096,6 +2279,124 @@ class BanglaLocalizations extends AppLocalizations {
         .map((c) => int.tryParse(c) == null ? c : digits[int.parse(c)])
         .join();
   }
+
+  // Admin panel and account access
+  @override
+  String get adminPanel => 'অ্যাডমিন প্যানেল';
+  @override
+  String get adminPanelSubtitle => 'ইউজার অনুমোদন, মেইনটেন্যান্স ও ফিচার নিয়ন্ত্রণ';
+  @override
+  String get administration => 'প্রশাসন';
+  @override
+  String get usersTab => 'ইউজার';
+  @override
+  String get appControlsTab => 'অ্যাপ নিয়ন্ত্রণ';
+  @override
+  String get statusPending => 'অপেক্ষমাণ';
+  @override
+  String get statusApproved => 'অনুমোদিত';
+  @override
+  String get statusBlocked => 'ব্লক করা';
+  @override
+  String get approve => 'অনুমোদন দিন';
+  @override
+  String get approveAll => 'সবাইকে অনুমোদন দিন';
+  @override
+  String get approveAllTitle => 'তালিকার অপেক্ষমাণ সবাইকে অনুমোদন দেবেন?';
+  @override
+  String get block => 'ব্লক করুন';
+  @override
+  String get unblock => 'আনব্লক করুন';
+  @override
+  String get moveToPending => 'অপেক্ষমাণ তালিকায় নিন';
+  @override
+  String get blockUserTitle => 'এই ইউজারকে ব্লক করবেন?';
+  @override
+  String get blockUserMessage => 'আনব্লক না করা পর্যন্ত তিনি অ্যাপ ব্যবহার করতে পারবেন না।';
+  @override
+  String get blockReasonHint => 'কারণ (ঐচ্ছিক, ইউজার দেখতে পাবেন)';
+  @override
+  String get userApproved => 'ইউজার অনুমোদিত হয়েছেন';
+  @override
+  String get userBlocked => 'ইউজার ব্লক করা হয়েছে';
+  @override
+  String get userMovedToPending => 'অপেক্ষমাণ তালিকায় নেওয়া হয়েছে';
+  @override
+  String get searchByEmail => 'ইমেইল দিয়ে ইউজার খুঁজুন';
+  @override
+  String get userNotFound => 'এই ইমেইলের কোনো ইউজার নেই';
+  @override
+  String get noUsersHere => 'এখানে কোনো ইউজার নেই';
+  @override
+  String get loadMore => 'আরও দেখুন';
+  @override
+  String get joined => 'যোগদান';
+  @override
+  String get features => 'ফিচার';
+  @override
+  String get featureSavings => 'সঞ্চয়ের লক্ষ্য';
+  @override
+  String get featureSavingsDesc => 'লক্ষ্য, জমা ও উত্তোলনসহ সঞ্চয় মোড';
+  @override
+  String get featureStatement => 'PDF বিবরণী';
+  @override
+  String get featureStatementDesc => 'হিসাব বিবরণী PDF আকারে ডাউনলোড';
+  @override
+  String get featureCloudSync => 'ক্লাউড সিঙ্ক';
+  @override
+  String get featureCloudSyncDesc => 'ডিভাইসগুলোর মধ্যে ডেটা সিঙ্ক। বন্ধ থাকলে ডেটা ডিভাইসে থাকে, পরে সিঙ্ক হয়।';
+  @override
+  String get followAppSetting => 'ডিফল্ট';
+  @override
+  String get onLabel => 'চালু';
+  @override
+  String get offLabel => 'বন্ধ';
+  @override
+  String get userFeaturesHint => 'শুধু এই ইউজারের জন্য। ডিফল্ট মানে সবার জন্য যে সেটিং।';
+  @override
+  String get maintenanceMode => 'মেইনটেন্যান্স মোড';
+  @override
+  String get maintenanceModeDesc => 'অ্যাডমিন ছাড়া সবাই মেইনটেন্যান্স স্ক্রিন দেখবেন';
+  @override
+  String get maintenanceOnTitle => 'মেইনটেন্যান্স মোড চালু করবেন?';
+  @override
+  String get maintenanceMessageLabel => 'ইউজারদের জন্য বার্তা';
+  @override
+  String get maintenanceIsOn => 'মেইনটেন্যান্স মোড চালু — ইউজাররা এখন অ্যাপ ব্যবহার করতে পারছেন না।';
+  @override
+  String get newUsers => 'নতুন ইউজার';
+  @override
+  String get requireApproval => 'অনুমোদন বাধ্যতামূলক';
+  @override
+  String get requireApprovalDesc => 'নতুন ইউজাররা আপনার অনুমোদনের অপেক্ষায় থাকবেন। বন্ধ থাকলে স্বয়ংক্রিয়ভাবে অনুমোদিত হবেন।';
+  @override
+  String get featuresForEveryone => 'সবার জন্য ফিচার';
+  @override
+  String get settingSaved => 'সংরক্ষিত হয়েছে';
+  @override
+  String get savedWhenOnline => 'সংরক্ষিত। অনলাইনে এলে কার্যকর হবে।';
+  @override
+  String get checkingAccount => 'আপনার অ্যাকাউন্ট যাচাই হচ্ছে…';
+  @override
+  String get pendingTitle => 'অনুমোদনের অপেক্ষায়';
+  @override
+  String get pendingMessage => 'আপনার অ্যাকাউন্ট নিবন্ধিত হয়েছে। অ্যাডমিন শীঘ্রই এটি যাচাই করবেন — অনুমোদন পেলে এই স্ক্রিন নিজে থেকেই বদলে যাবে।';
+  @override
+  String get blockedTitle => 'অ্যাকাউন্ট ব্লক করা হয়েছে';
+  @override
+  String get blockedMessage => 'অ্যাডমিন আপনার অ্যাকাউন্ট ব্লক করেছেন।';
+  @override
+  String get reasonLabel => 'কারণ';
+  @override
+  String get maintenanceTitle => 'রক্ষণাবেক্ষণ চলছে';
+  @override
+  String get maintenanceDefaultMessage => 'অ্যাপটি উন্নত করা হচ্ছে। কিছুক্ষণ পরে আবার দেখুন।';
+  @override
+  String get contactSupport => 'সাপোর্টে যোগাযোগ';
+  @override
+  String get featureDisabled => 'অ্যাডমিন এই ফিচারটি বন্ধ রেখেছেন।';
+  @override
+  String get cloudSyncPaused => 'অ্যাডমিন ক্লাউড সিঙ্ক বন্ধ রেখেছেন। আপনার ডেটা এই ডিভাইসে নিরাপদ, পরে সিঙ্ক হবে।';
 
   @override
   String getCategoryName(String category) {

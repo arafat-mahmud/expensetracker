@@ -446,6 +446,15 @@ class AppTheme {
         headerForegroundColor: scheme.onPrimary,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: scheme.primary,
+        unselectedLabelColor: scheme.onSurfaceVariant,
+        indicatorColor: scheme.primary,
+        indicatorSize: TabBarIndicatorSize.label,
+        dividerColor: scheme.outlineVariant,
+        labelStyle: text.titleSmall,
+        unselectedLabelStyle: text.titleSmall,
+      ),
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
           color: scheme.inverseSurface,

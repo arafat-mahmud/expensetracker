@@ -4,6 +4,8 @@ import '../utils/background_restore_handler.dart';
 import '../providers/expense_provider.dart';
 import '../providers/budget_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/account_provider.dart';
+import '../models/account_model.dart';
 import '../l10n/app_localizations.dart';
 import '../models/expense_model.dart';
 import '../theme/app_format.dart';
@@ -182,6 +184,7 @@ class _DashboardPageState extends State<DashboardPage> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
+            const AdminNotices(),
             HeroSummaryCard(
               label: l.monthBalance,
               amount: AppFormat.money(context, monthBalance),
@@ -221,12 +224,14 @@ class _DashboardPageState extends State<DashboardPage> {
                   color: palette.expense,
                   onTap: () => _open(const AddExpensePage()),
                 ),
-                _QuickAction(
-                  icon: Icons.description_outlined,
-                  label: l.statement,
-                  color: Theme.of(context).colorScheme.primary,
-                  onTap: () => Navigator.pushNamed(context, '/statement'),
-                ),
+                if (Provider.of<AccountProvider>(context)
+                    .isEnabled(AppFeature.statement))
+                  _QuickAction(
+                    icon: Icons.description_outlined,
+                    label: l.statement,
+                    color: Theme.of(context).colorScheme.primary,
+                    onTap: () => Navigator.pushNamed(context, '/statement'),
+                  ),
                 _QuickAction(
                   icon: Icons.insights_rounded,
                   label: l.dailyTrends,
@@ -284,7 +289,8 @@ class _DashboardPageState extends State<DashboardPage> {
             SectionHeader(
               l.recentTransactions,
               actionLabel: recent.isEmpty ? null : l.seeAll,
-              onAction: () => Navigator.pushReplacementNamed(context, '/history'),
+              onAction: () =>
+                  Navigator.pushReplacementNamed(context, '/history'),
             ),
             Card(
               child: recent.isEmpty
@@ -302,8 +308,8 @@ class _DashboardPageState extends State<DashboardPage> {
                             onEdit: () => _open(recent[i].isDebit
                                 ? AddExpensePage(expense: recent[i])
                                 : AddIncomePage(income: recent[i])),
-                            onDelete: () => confirmAndDeleteExpense(
-                                context, recent[i], expenseProvider.deleteExpense),
+                            onDelete: () => confirmAndDeleteExpense(context,
+                                recent[i], expenseProvider.deleteExpense),
                           ),
                         ],
                       ],
@@ -471,8 +477,9 @@ class _BudgetCard extends StatelessWidget {
 
     final ratio = budget > 0 ? spent / budget : 0.0;
     final over = spent > budget;
-    final color =
-        over ? palette.expense : (ratio >= 0.8 ? palette.warning : palette.income);
+    final color = over
+        ? palette.expense
+        : (ratio >= 0.8 ? palette.warning : palette.income);
     final percent = '${AppFormat.number(context, (ratio * 100).round())}%';
     final left = (budget - spent).abs();
 
@@ -609,8 +616,9 @@ class _CategoryBreakdown extends StatelessWidget {
                                   child: LinearProgressIndicator(
                                     value: total > 0 ? entry.value / total : 0,
                                     minHeight: 6,
-                                    color: Color(ExpenseCategory
-                                        .getCategoryColor(entry.key)['color']!),
+                                    color: Color(
+                                        ExpenseCategory.getCategoryColor(
+                                            entry.key)['color']!),
                                     backgroundColor: scheme.surfaceContainer,
                                   ),
                                 ),

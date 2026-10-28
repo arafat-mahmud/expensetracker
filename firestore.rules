@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Keep this list identical to lib/config/admin_config.dart
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['arafat.mahmud.2001@gmail.com'];
+    }
+
+    // The owner of userId's data, with an approved account (admins always
+    // pass). Costs one document read per request; repeated checks within
+    // one request or batch are served from a cache.
+    function isApprovedOwner(userId) {
+      return signedIn()
+        && request.auth.uid == userId
+        && (isAdmin()
+          || get(/databases/$(database)/documents/accounts/$(userId)).data.status == 'approved');
+    }
+
+    // App configuration: maintenance mode, approval policy, feature switches
+    match /config/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Account status, one document per user
+    match /accounts/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+
+      // Users register themselves once, as pending. They may start out
+      // approved only as an admin, or while the admin has switched the
+      // approval requirement off.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email', 'displayName', 'photoUrl', 'status', 'createdAt'])
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.createdAt == request.time
+        && (request.resource.data.status == 'pending'
+          || (request.resource.data.status == 'approved'
+            && (isAdmin()
+              || get(/databases/$(database)/documents/config/app).data.get('requireApproval', true) == false)));
+
+      // Only admins change an account (status, per-user features)
+      allow update, delete: if isAdmin();
+    }
+
+    // Each user's own data: the settings document and every subcollection
+    // (expenses, expenses_by_date/items, deposit_profiles,
+    // deposit_transactions)
+    match /users/{userId}/{document=**} {
+      allow read, write: if isApprovedOwner(userId);
+    }
+
+    // Everything else is closed
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

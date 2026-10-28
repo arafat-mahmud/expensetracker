@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
+import '../../models/account_model.dart';
+import '../../providers/account_provider.dart';
 import '../../providers/mode_provider.dart';
 import '../../theme/app_theme.dart';
 
@@ -49,6 +51,86 @@ class AppNavigationBar extends StatelessWidget {
             selectedIcon: const Icon(Icons.settings_rounded),
             label: l.settings,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tinted notice row, e.g. "cloud sync is paused"
+class InfoBanner extends StatelessWidget {
+  const InfoBanner({
+    super.key,
+    required this.icon,
+    required this.message,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String message;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    height: 1.4,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Notices about what the administrator has switched on or off: cloud sync
+/// paused for this user, and (for admins) maintenance mode still running
+class AdminNotices extends StatelessWidget {
+  const AdminNotices({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final palette = AppPalette.of(context);
+    final account = Provider.of<AccountProvider>(context);
+    final notices = [
+      if (account.isAdmin && account.config.maintenance)
+        InfoBanner(
+          icon: Icons.construction_rounded,
+          message: l.maintenanceIsOn,
+          color: palette.warning,
+        ),
+      if (!account.isEnabled(AppFeature.cloudSync))
+        InfoBanner(
+          icon: Icons.cloud_off_rounded,
+          message: l.cloudSyncPaused,
+          color: palette.warning,
+        ),
+    ];
+    if (notices.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        children: [
+          for (var i = 0; i < notices.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            notices[i],
+          ],
         ],
       ),
     );

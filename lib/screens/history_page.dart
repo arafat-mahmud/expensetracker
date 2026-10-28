@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/expense_model.dart';
 import '../providers/expense_provider.dart';
+import '../providers/account_provider.dart';
+import '../models/account_model.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_format.dart';
 import '../theme/app_theme.dart';
@@ -85,11 +87,13 @@ class _HistoryPageState extends State<HistoryPage> {
       appBar: AppBar(
         title: Text(l.history),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.file_download_outlined),
-            tooltip: l.downloadStatement,
-            onPressed: () => Navigator.pushNamed(context, '/statement'),
-          ),
+          if (Provider.of<AccountProvider>(context)
+              .isEnabled(AppFeature.statement))
+            IconButton(
+              icon: const Icon(Icons.file_download_outlined),
+              tooltip: l.downloadStatement,
+              onPressed: () => Navigator.pushNamed(context, '/statement'),
+            ),
           const SizedBox(width: 8),
         ],
       ),
@@ -184,7 +188,9 @@ class _HistoryPageState extends State<HistoryPage> {
                           Card(
                             child: Column(
                               children: [
-                                for (var i = 0; i < entry.value.length; i++) ...[
+                                for (var i = 0;
+                                    i < entry.value.length;
+                                    i++) ...[
                                   if (i > 0) const Divider(indent: 72),
                                   ExpenseCard(
                                     expense: entry.value[i],
@@ -270,8 +276,8 @@ class _DayHeader extends StatelessWidget {
         : AppFormat.isSameDay(day, now.subtract(const Duration(days: 1)))
             ? l.yesterday
             : AppFormat.longDate(context, day);
-    final net = items.fold(
-        0.0, (sum, e) => sum + (e.isCredit ? e.amount : -e.amount));
+    final net =
+        items.fold(0.0, (sum, e) => sum + (e.isCredit ? e.amount : -e.amount));
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),

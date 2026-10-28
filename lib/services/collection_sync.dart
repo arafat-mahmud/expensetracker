@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/widgets.dart';
+import 'access_gate.dart';
 import 'auth_service.dart';
 import 'hive_service.dart';
 import 'sync_queue_service.dart';
@@ -52,8 +53,10 @@ class CollectionSync with WidgetsBindingObserver {
     required this.collection,
     required this.isLocalEmpty,
     required this.apply,
+    this.onInitialLoad,
   }) {
     WidgetsBinding.instance.addObserver(this);
+    AccessGate.cloudAllowed.addListener(_onAccessChanged);
   }
 
   static const String settingsDocId = '_settings';
@@ -72,6 +75,9 @@ class CollectionSync with WidgetsBindingObserver {
   final bool Function() isLocalEmpty;
   final Future<void> Function(RemoteChanges changes) apply;
 
+  /// Called after data was loaded into an empty local store
+  final Future<void> Function()? onInitialLoad;
+
   final AuthService _authService = AuthService();
   String? _userId;
   bool _active = false;
@@ -83,6 +89,8 @@ class CollectionSync with WidgetsBindingObserver {
   DateTime? _pausedAt;
   Future<void> _applyQueue = Future.value();
   bool _deviceFilterUnavailable = false;
+  // start() was asked for; runs once the access gate opens
+  bool _wanted = false;
 
   /// Loads the collection if local storage needs it, then listens for changes
   /// from other devices. Safe to call repeatedly (e.g. pull-to-refresh): while
@@ -91,6 +99,9 @@ class CollectionSync with WidgetsBindingObserver {
   Future<bool> start() {
     final userId = _authService.getUserId();
     if (userId == null) return Future.value(false);
+    if (_userId != null && _userId != userId) stop();
+    _wanted = true;
+    if (!AccessGate.cloudAllowed.value) return Future.value(false);
     if (_userId == userId) {
       if (_starting != null) return _starting!;
       if (_active) {
@@ -148,10 +159,12 @@ class CollectionSync with WidgetsBindingObserver {
     if (!_isCurrent(userId, generation)) return false;
     _active = true;
     _listen();
+    if (loaded) await onInitialLoad?.call();
     return loaded;
   }
 
   void stop() {
+    _wanted = false;
     _generation++;
     _starting = null;
     _subscription?.cancel();
@@ -160,6 +173,19 @@ class CollectionSync with WidgetsBindingObserver {
     _userId = null;
     _listenFrom = null;
     _pausedAt = null;
+  }
+
+  void _onAccessChanged() {
+    if (AccessGate.cloudAllowed.value) {
+      if (_wanted) start();
+      return;
+    }
+    // Access withdrawn: stop listening, but resume when it comes back
+    _generation++;
+    _starting = null;
+    _subscription?.cancel();
+    _subscription = null;
+    _active = false;
   }
 
   @override

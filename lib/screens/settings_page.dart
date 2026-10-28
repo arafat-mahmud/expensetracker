@@ -7,6 +7,9 @@ import '../providers/expense_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/language_provider.dart';
 import '../providers/mode_provider.dart';
+import '../providers/account_provider.dart';
+import '../models/account_model.dart';
+import 'admin/admin_panel_page.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_format.dart';
 import '../theme/app_theme.dart';
@@ -42,9 +45,12 @@ class _SettingsPageState extends State<SettingsPage> {
     final authProvider = Provider.of<AuthProvider>(context);
     final languageProvider = Provider.of<LanguageProvider>(context);
     final modeProvider = Provider.of<ModeProvider>(context);
+    final accountProvider = Provider.of<AccountProvider>(context);
     final l = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
     final palette = AppPalette.of(context);
+    final savingsOn = accountProvider.isEnabled(AppFeature.savings);
+    final statementOn = accountProvider.isEnabled(AppFeature.statement);
 
     return Scaffold(
       appBar: AppBar(title: Text(l.settings)),
@@ -62,26 +68,47 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const SizedBox(height: 24),
             ],
+            if (accountProvider.isAdmin) ...[
+              SettingsGroup(
+                title: l.administration,
+                children: [
+                  SettingsTile(
+                    icon: Icons.admin_panel_settings_rounded,
+                    iconColor: scheme.primary,
+                    title: l.adminPanel,
+                    subtitle: l.adminPanelSubtitle,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const AdminPanelPage()),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
+            const AdminNotices(),
             SettingsGroup(
               title: l.general,
               children: [
-                SettingsTile(
-                  icon: modeProvider.isDepositMode
-                      ? Icons.savings_rounded
-                      : Icons.account_balance_wallet_rounded,
-                  iconColor: scheme.primary,
-                  title: l.appMode,
-                  subtitle: modeProvider.isDepositMode
-                      ? l.depositMode
-                      : l.expenseMode,
-                  trailing: Switch(
-                    value: modeProvider.isDepositMode,
-                    onChanged: (_) {
-                      modeProvider.toggleMode();
-                      Navigator.pushReplacementNamed(context, '/');
-                    },
+                if (savingsOn)
+                  SettingsTile(
+                    icon: modeProvider.isDepositMode
+                        ? Icons.savings_rounded
+                        : Icons.account_balance_wallet_rounded,
+                    iconColor: scheme.primary,
+                    title: l.appMode,
+                    subtitle: modeProvider.isDepositMode
+                        ? l.depositMode
+                        : l.expenseMode,
+                    trailing: Switch(
+                      value: modeProvider.isDepositMode,
+                      onChanged: (_) {
+                        modeProvider.toggleMode();
+                        Navigator.pushReplacementNamed(context, '/');
+                      },
+                    ),
                   ),
-                ),
                 SettingsTile(
                   icon: Icons.pie_chart_rounded,
                   iconColor: palette.income,
@@ -91,13 +118,14 @@ class _SettingsPageState extends State<SettingsPage> {
                       decimals: 0),
                   onTap: () => _showBudgetDialog(budgetProvider),
                 ),
-                SettingsTile(
-                  icon: Icons.description_rounded,
-                  iconColor: palette.violet,
-                  title: l.downloadStatement,
-                  subtitle: l.generateStatement,
-                  onTap: () => Navigator.pushNamed(context, '/statement'),
-                ),
+                if (statementOn)
+                  SettingsTile(
+                    icon: Icons.description_rounded,
+                    iconColor: palette.violet,
+                    title: l.downloadStatement,
+                    subtitle: l.generateStatement,
+                    onTap: () => Navigator.pushNamed(context, '/statement'),
+                  ),
               ],
             ),
             const SizedBox(height: 24),
@@ -435,8 +463,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     textCapitalization: TextCapitalization.characters,
                     decoration:
                         const InputDecoration(hintText: _deleteConfirmation),
-                    onChanged: (value) => setDialogState(() =>
-                        valid = value.trim() == _deleteConfirmation),
+                    onChanged: (value) => setDialogState(
+                        () => valid = value.trim() == _deleteConfirmation),
                   ),
                   if (valid)
                     Padding(

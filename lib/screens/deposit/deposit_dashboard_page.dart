@@ -129,8 +129,7 @@ class _DepositDashboardPageState extends State<DepositDashboardPage> {
                   value: 'download',
                   child: Row(
                     children: [
-                      Icon(Icons.file_download_outlined,
-                          color: scheme.primary),
+                      Icon(Icons.file_download_outlined, color: scheme.primary),
                       const SizedBox(width: 12),
                       Text(l.downloadPdf),
                     ],
@@ -174,9 +173,11 @@ class _DepositDashboardPageState extends State<DepositDashboardPage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
                 children: [
+                  const AdminNotices(),
                   HeroSummaryCard(
                     label: l.totalSavings,
-                    amount: AppFormat.money(context, depositProvider.totalBalance),
+                    amount:
+                        AppFormat.money(context, depositProvider.totalBalance),
                     badge: HeroBadge(
                       icon: Icons.flag_rounded,
                       label:
@@ -215,7 +216,8 @@ class _DepositDashboardPageState extends State<DepositDashboardPage> {
                   if (depositProvider.completedProfiles.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     SectionHeader(l.completedGoals),
-                    for (final profile in depositProvider.completedProfiles) ...[
+                    for (final profile
+                        in depositProvider.completedProfiles) ...[
                       DepositProfileCard(
                         profile: profile,
                         onTap: () => _openProfile(profile),
