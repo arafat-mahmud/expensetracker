@@ -73,25 +73,56 @@ class AccountService {
   Future<void> updateConfig(Map<String, Object?> values) =>
       _config.set(values, SetOptions(merge: true));
 
-  /// One page of accounts with [status], newest first. Needs the composite
-  /// index on (status, createdAt) from firestore.indexes.json.
+  /// Set once the (status, createdAt) index turns out to be missing, so the
+  /// rest of the session pages with the fallback query
+  static bool _orderedListUnavailable = false;
+
+  /// One page of accounts with [status], newest first. Uses the composite
+  /// index on (status, createdAt) from firestore.indexes.json; until that
+  /// index exists, pages come in document ID order, each sorted newest first.
   Future<({List<AppAccount> accounts, DocumentSnapshot? cursor})> listAccounts(
     AccountStatus status, {
     DocumentSnapshot? after,
     int limit = 25,
   }) async {
-    Query<Map<String, dynamic>> query = _accounts
-        .where('status', isEqualTo: status.name)
-        .orderBy('createdAt', descending: true)
-        .limit(limit);
-    if (after != null) query = query.startAfterDocument(after);
-    final snapshot = await query.get();
+    QuerySnapshot<Map<String, dynamic>> snapshot;
+    try {
+      snapshot = await _listQuery(status, after, limit).get();
+    } on FirebaseException catch (e) {
+      if (e.code != 'failed-precondition' || _orderedListUnavailable) rethrow;
+      print('⚠️ [ADMIN] Missing Firestore index on accounts '
+          '(status, createdAt), listing without it: $e');
+      _orderedListUnavailable = true;
+      snapshot = await _listQuery(status, after, limit).get();
+    }
+
+    final accounts = [
+      for (final doc in snapshot.docs) AppAccount.fromMap(doc.id, doc.data()),
+    ];
+    if (_orderedListUnavailable) {
+      final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+      accounts.sort((a, b) =>
+          (b.createdAt ?? epoch).compareTo(a.createdAt ?? epoch));
+    }
     return (
-      accounts: [
-        for (final doc in snapshot.docs) AppAccount.fromMap(doc.id, doc.data()),
-      ],
+      accounts: accounts,
       cursor: snapshot.docs.length < limit ? null : snapshot.docs.last,
     );
+  }
+
+  Query<Map<String, dynamic>> _listQuery(
+    AccountStatus status,
+    DocumentSnapshot? after,
+    int limit,
+  ) {
+    Query<Map<String, dynamic>> query =
+        _accounts.where('status', isEqualTo: status.name);
+    if (!_orderedListUnavailable) {
+      query = query.orderBy('createdAt', descending: true);
+    }
+    query = query.limit(limit);
+    if (after != null) query = query.startAfterDocument(after);
+    return query;
   }
 
   /// Counted on the server: about one read per 1,000 matching accounts
